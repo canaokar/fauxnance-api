@@ -2,14 +2,12 @@ service: fauxnance-api
 frameworkVersion: "4"
 configValidationMode: error
 
-plugins:
-  - serverless-iam-roles-per-function
-
 custom:
   dataTableName: fauxnance-${sls:stage}-data
   controlTableName: fauxnance-${sls:stage}-control
   awsAccountId: ${aws:accountId}
   adminKeyIdsParameter: /fauxnance/${sls:stage}/admin/key_ids
+  alphaVantageApiKeyParameter: /fauxnance/${sls:stage}/upstreams/alpha_vantage/api_key
   pythonRequirements:
     dockerizePip: non-linux
     slim: true
@@ -145,7 +143,131 @@ functions:
         Resource:
           - arn:${aws:partition}:ssm:${aws:region}:${self:custom.awsAccountId}:parameter/fauxnance/${sls:stage}/admin/key_ids
 
+  dispatcher:
+    handler: src.ingest.dispatcher.handler
+    description: Enqueues the nightly US end-of-day ingest work
+    memorySize: 256
+    timeout: 60
+    environment:
+      DATA_TABLE: ${self:custom.dataTableName}
+      INGEST_QUEUE_URL:
+        Ref: IngestQueue
+    package:
+      patterns:
+        - src/__init__.py
+        - src/ingest/**
+        - src/shared/**
+    iamRoleStatementsName: ${self:service}-${sls:stage}-dispatcher-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.dataTableName}
+      - Effect: Allow
+        Action:
+          - sqs:SendMessage
+        Resource:
+          - Fn::GetAtt:
+              - IngestQueue
+              - Arn
+    events:
+      - schedule:
+          rate: cron(30 23 ? * MON-FRI *)
+          enabled: true
+          input:
+            market: US
+
+  ingestWorker:
+    handler: src.ingest.handler.handler
+    description: Fetches and stores queued end-of-day market data
+    memorySize: 512
+    timeout: 60
+    reservedConcurrency: 2
+    environment:
+      DATA_TABLE: ${self:custom.dataTableName}
+      CONTROL_TABLE: ${self:custom.controlTableName}
+      ALPHA_VANTAGE_API_KEY_PARAMETER: ${self:custom.alphaVantageApiKeyParameter}
+    package:
+      patterns:
+        - src/__init__.py
+        - src/ingest/**
+        - src/adapters/**
+        - src/shared/**
+    iamRoleStatementsName: ${self:service}-${sls:stage}-ingest-worker-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.dataTableName}
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+          - dynamodb:TransactWriteItems
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+      - Effect: Allow
+        Action:
+          - ssm:GetParameter
+        Resource:
+          - arn:${aws:partition}:ssm:${aws:region}:${self:custom.awsAccountId}:parameter/fauxnance/${sls:stage}/upstreams/alpha_vantage/api_key
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - IngestQueue
+              - Arn
+          batchSize: 1
+          maximumConcurrency: 2
+          functionResponseType: ReportBatchItemFailures
+
 resources:
+  Resources:
+    IngestDeadLetterQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-ingest-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    IngestQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-ingest
+        VisibilityTimeout: 360
+        SqsManagedSseEnabled: true
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - IngestDeadLetterQueue
+              - Arn
+          maxReceiveCount: 5
+
+    IngestDeadLetterQueueAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-ingest-dlq-not-empty
+        AlarmDescription: Ingest messages exhausted retries and reached the DLQ
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value:
+              Fn::GetAtt:
+                - IngestDeadLetterQueue
+                - QueueName
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
   extensions:
     HttpApiStage:
       Properties:
