@@ -125,10 +125,10 @@ pipeline (TF plan/apply + `sls deploy`) is a Phase 4 nice-to-have.
   runtime schema predates Lambda Python 3.13, so it cannot validate this service.
   V4 is free below $2 M organization revenue but requires a one-time Serverless
   account login before packaging/deployment.
-- Plugins: exactly `serverless-iam-roles-per-function` and
-  `serverless-python-requirements`. New plugins need a spec change.
+- Plugin: only `serverless-iam-roles-per-function`; new plugins need a spec
+  change. Serverless v4 provides Python dependency packaging itself.
 - Packaging: SF's `package.patterns` per function, with dependencies vendored by
-  `serverless-python-requirements`; arm64, no pandas/numpy, zips < 10 MB.
+  the v4 Python packager; arm64, no pandas/numpy, zips < 10 MB.
 - HTTP API CORS is explicit: allow origin `*`, methods used by the public/admin
   API, and request headers `X-Api-Key` and `Content-Type`; do not enable
   credentials. API Gateway handles unauthenticated preflight requests.

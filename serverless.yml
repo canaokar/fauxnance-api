@@ -1,0 +1,155 @@
+service: fauxnance-api
+frameworkVersion: "4"
+configValidationMode: error
+
+plugins:
+  - serverless-iam-roles-per-function
+
+custom:
+  dataTableName: ${ssm:/fauxnance/${sls:stage}/infra/data_table_name}
+  controlTableName: ${ssm:/fauxnance/${sls:stage}/infra/control_table_name}
+  awsAccountId: ${aws:accountId}
+  adminKeyIdsParameter: /fauxnance/${sls:stage}/admin/key_ids
+  pythonRequirements:
+    dockerizePip: non-linux
+    slim: true
+    strip: false
+
+provider:
+  name: aws
+  runtime: python3.13
+  architecture: arm64
+  stage: ${opt:stage, "dev"}
+  region: ${opt:region, "eu-west-2"}
+  profile: ${opt:aws-profile, "megh.io"}
+  deploymentMethod: direct
+  logRetentionInDays: 14
+  versionFunctions: false
+  environment:
+    STAGE: ${sls:stage}
+    LOG_LEVEL: INFO
+    POWERTOOLS_SERVICE_NAME: fauxnance-api
+  tags:
+    project: fauxnance
+    env: ${sls:stage}
+    managed-by: serverless
+  stackTags:
+    project: fauxnance
+    env: ${sls:stage}
+    managed-by: serverless
+  logs:
+    httpApi: true
+  httpApi:
+    name: ${self:service}-${sls:stage}
+    payload: "2.0"
+    cors:
+      allowedOrigins:
+        - "*"
+      allowedHeaders:
+        - Content-Type
+        - X-Api-Key
+      allowedMethods:
+        - GET
+      allowCredentials: false
+      exposedResponseHeaders:
+        - Retry-After
+    authorizers:
+      apiKeyAuthorizer:
+        type: request
+        functionName: authorizer
+        payloadVersion: "2.0"
+        enableSimpleResponses: true
+        identitySource:
+          - $request.header.X-Api-Key
+        resultTtlInSeconds: 300
+
+package:
+  individually: true
+  patterns:
+    - "!**"
+
+functions:
+  api:
+    handler: src.api.handler.handler
+    description: Fauxnance Phase 1 public API
+    memorySize: 512
+    timeout: 15
+    environment:
+      DATA_TABLE: ${self:custom.dataTableName}
+      CONTROL_TABLE: ${self:custom.controlTableName}
+      DEFAULT_DAILY_QUOTA: "2000"
+      HEALTH_MARKETS: US
+    package:
+      patterns:
+        - src/__init__.py
+        - src/api/**
+        - src/shared/**
+    iamRoleStatementsName: ${self:service}-${sls:stage}-api-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:BatchGetItem
+          - dynamodb:Query
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.dataTableName}
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+    events:
+      - httpApi:
+          method: GET
+          path: /v1/health
+      - httpApi:
+          method: GET
+          path: /v1/usage
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/symbols/{symbol}
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/candles/{symbol}
+          authorizer:
+            name: apiKeyAuthorizer
+
+  authorizer:
+    handler: src.authorizer.handler.handler
+    description: Validates Fauxnance API keys and attaches quota context
+    memorySize: 256
+    timeout: 5
+    environment:
+      CONTROL_TABLE: ${self:custom.controlTableName}
+      ADMIN_KEY_IDS_PARAMETER: ${self:custom.adminKeyIdsParameter}
+    package:
+      patterns:
+        - src/__init__.py
+        - src/authorizer/**
+        - src/shared/**
+    iamRoleStatementsName: ${self:service}-${sls:stage}-authorizer-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+      - Effect: Allow
+        Action:
+          - ssm:GetParameter
+        Resource:
+          - arn:${aws:partition}:ssm:${aws:region}:${self:custom.awsAccountId}:parameter/fauxnance/${sls:stage}/admin/key_ids
+
+resources:
+  extensions:
+    HttpApiStage:
+      Properties:
+        DefaultRouteSettings:
+          DetailedMetricsEnabled: false
+          ThrottlingRateLimit: 50
+          ThrottlingBurstLimit: 25
