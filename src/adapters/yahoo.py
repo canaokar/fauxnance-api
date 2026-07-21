@@ -138,17 +138,20 @@ def _parse_chart(payload: bytes, *, start: date, end: date) -> EodResult:
             if None in (open_, high, low, close_):
                 continue
             candle_date = datetime.fromtimestamp(int(timestamp), UTC).date()
-            all_candles.append(
-                Candle(
-                    date=candle_date,
-                    open=Decimal(open_),
-                    high=Decimal(high),
-                    low=Decimal(low),
-                    close=Decimal(close_),
-                    volume=int(Decimal(volume)) if volume is not None else None,
-                    source="yahoo",
-                )
+            candle = Candle(
+                date=candle_date,
+                open=Decimal(open_),
+                high=Decimal(high),
+                low=Decimal(low),
+                close=Decimal(close_),
+                volume=int(Decimal(volume)) if volume is not None else None,
+                source="yahoo",
             )
+            if not candle.low <= candle.open <= candle.high:
+                continue
+            if not candle.low <= candle.close <= candle.high:
+                continue
+            all_candles.append(candle)
     except (InvalidOperation, ValueError, TypeError) as exc:
         raise YahooError("Yahoo chart contains an invalid candle") from exc
 

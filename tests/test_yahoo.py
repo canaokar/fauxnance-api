@@ -89,6 +89,17 @@ class YahooAdapterTests(unittest.TestCase):
         self.assertEqual([row.date for row in result.candles], [date(2026, 7, 21)])
         self.assertIsNone(result.candles[0].volume)
 
+    def test_skips_provider_rows_with_inconsistent_ohlc_bounds(self):
+        chart = json.loads(json.dumps(CHART))
+        quote = chart["chart"]["result"][0]["indicators"]["quote"][0]
+        quote["open"][2] = 207.0
+
+        result = YahooAdapter(
+            fetch=lambda _url, _timeout: json.dumps(chart).encode()
+        ).get_eod("AAPL", date(2026, 7, 20), date(2026, 7, 21))
+
+        self.assertEqual([row.date for row in result.candles], [date(2026, 7, 20)])
+
     def test_vendor_symbol_mapping_and_capability_are_phase_one_scoped(self):
         adapter = YahooAdapter()
         self.assertEqual(adapter.vendor_symbol("brk.b"), "BRK-B")
