@@ -185,9 +185,10 @@ class DynamoDBIngestRepository:
         timestamp = _utc_timestamp(now)
         work_key = {"PK": f"JOB#{job_id}", "SK": f"WORK#{symbol}#YEAR#{year}"}
         job_key = {"PK": f"JOB#{job_id}", "SK": "META"}
-        try:
-            client.transact_write_items(
-                TransactItems=[
+        for attempt in range(self._max_merge_attempts):
+            try:
+                client.transact_write_items(
+                    TransactItems=[
                     {
                         "Update": {
                             "TableName": self._control.name,
@@ -222,20 +223,27 @@ class DynamoDBIngestRepository:
                             },
                         }
                     },
-                ]
-            )
-            self._complete_job_if_done(job_id, timestamp)
-            return True
-        except Exception as exc:
-            if not _is_transaction_cancelled(exc):
-                raise
-            item = self._control.get_item(
-                Key=work_key, ConsistentRead=True
-            ).get("Item")
-            if item and item.get("state") == "completed":
+                    ]
+                )
                 self._complete_job_if_done(job_id, timestamp)
-                return False
-            raise
+                return True
+            except Exception as exc:
+                if not _is_transaction_cancelled(exc):
+                    raise
+                item = self._control.get_item(
+                    Key=work_key, ConsistentRead=True
+                ).get("Item")
+                if item and item.get("state") == "completed":
+                    self._complete_job_if_done(job_id, timestamp)
+                    return False
+                if (
+                    _is_transaction_conflict(exc)
+                    and attempt + 1 < self._max_merge_attempts
+                ):
+                    self._pause(random.uniform(0.02, 0.1) * (attempt + 1))
+                    continue
+                raise
+        raise RuntimeError("backfill completion attempts exhausted")  # pragma: no cover
 
     def _complete_job_if_done(self, job_id: str, timestamp: str) -> None:
         if self._control is None:  # pragma: no cover - guarded by caller
@@ -385,6 +393,17 @@ def _is_missing_document_path(exc: Exception) -> bool:
 def _is_transaction_cancelled(exc: Exception) -> bool:
     response = getattr(exc, "response", {})
     return response.get("Error", {}).get("Code") == "TransactionCanceledException"
+
+
+def _is_transaction_conflict(exc: Exception) -> bool:
+    response = getattr(exc, "response", {})
+    codes = {
+        reason.get("Code")
+        for reason in response.get("CancellationReasons", [])
+        if isinstance(reason, Mapping)
+        and reason.get("Code") not in (None, "None")
+    }
+    return codes == {"TransactionConflict"}
 
 
 def _utc_timestamp(now: datetime | None) -> str:

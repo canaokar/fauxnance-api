@@ -1,6 +1,9 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from io import BytesIO
 import json
+from unittest.mock import patch
+from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
 import unittest
 
@@ -112,6 +115,76 @@ class YahooAdapterTests(unittest.TestCase):
             YahooAdapter(fetch=lambda _url, _timeout: b"not json").get_eod(
                 "AAPL", date(2026, 7, 20), date(2026, 7, 21)
             )
+
+    def test_pre_listing_http_400_is_an_empty_success(self):
+        payload = json.dumps(
+            {
+                "chart": {
+                    "result": None,
+                    "error": {
+                        "code": "Bad Request",
+                        "description": (
+                            "Data doesn't exist for startDate = 1451606400, "
+                            "endDate = 1483228800"
+                        ),
+                    },
+                }
+            }
+        ).encode()
+        error = HTTPError(
+            "https://query1.finance.yahoo.com",
+            400,
+            "Bad Request",
+            {},
+            BytesIO(payload),
+        )
+
+        with patch("src.adapters.yahoo.urlopen", side_effect=error):
+            result = YahooAdapter().get_eod(
+                "ABNB", date(2016, 1, 1), date(2016, 12, 31)
+            )
+
+        self.assertEqual(result.candles, [])
+
+    def test_other_http_errors_are_not_hidden(self):
+        other_400 = HTTPError(
+            "https://query1.finance.yahoo.com",
+            400,
+            "Bad Request",
+            {},
+            BytesIO(
+                json.dumps(
+                    {
+                        "chart": {
+                            "result": None,
+                            "error": {
+                                "code": "Bad Request",
+                                "description": "Invalid symbol",
+                            },
+                        }
+                    }
+                ).encode()
+            ),
+        )
+        with patch("src.adapters.yahoo.urlopen", side_effect=other_400):
+            with self.assertRaises(HTTPError):
+                YahooAdapter().get_eod(
+                    "AAPL", date(2016, 1, 1), date(2016, 12, 31)
+                )
+
+        other_404 = HTTPError(
+            "https://query1.finance.yahoo.com",
+            404,
+            "Not Found",
+            {},
+            BytesIO(b"not found"),
+        )
+        with patch("src.adapters.yahoo.urlopen", side_effect=other_404):
+            with self.assertRaises(HTTPError):
+                YahooAdapter().get_eod(
+                    "AAPL", date(2016, 1, 1), date(2016, 12, 31)
+                )
+        other_404.close()
 
 
 if __name__ == "__main__":

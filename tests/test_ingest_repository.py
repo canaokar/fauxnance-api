@@ -13,6 +13,16 @@ class TransactionCancelled(Exception):
     response = {"Error": {"Code": "TransactionCanceledException"}}
 
 
+class TransactionConflict(Exception):
+    response = {
+        "Error": {"Code": "TransactionCanceledException"},
+        "CancellationReasons": [
+            {"Code": "None"},
+            {"Code": "TransactionConflict"},
+        ],
+    }
+
+
 class MissingDocumentPath(Exception):
     response = {
         "Error": {
@@ -93,6 +103,19 @@ class TransactionClient:
         self.calls.append(request)
         if self.error:
             raise self.error
+
+
+class ConflictOnceClient(TransactionClient):
+    def transact_write_items(self, **request):
+        self.calls.append(request)
+        if len(self.calls) == 1:
+            raise TransactionConflict()
+
+
+class ConflictClient(TransactionClient):
+    def transact_write_items(self, **request):
+        self.calls.append(request)
+        raise TransactionConflict()
 
 
 class ControlTable:
@@ -262,6 +285,39 @@ class IngestRepositoryTests(unittest.TestCase):
         changed = repository.complete_backfill_work("job_123", "AAPL", 2020)
 
         self.assertFalse(changed)
+
+    def test_transaction_conflict_retries_inside_the_worker(self):
+        client = ConflictOnceClient()
+        pauses = []
+        repository = DynamoDBIngestRepository(
+            object(),
+            ControlTable(),
+            transaction_client=client,
+            pause=pauses.append,
+        )
+
+        changed = repository.complete_backfill_work("job_123", "AAPL", 2020)
+
+        self.assertTrue(changed)
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(len(pauses), 1)
+
+    def test_transaction_conflict_retries_are_bounded(self):
+        client = ConflictClient()
+        pauses = []
+        repository = DynamoDBIngestRepository(
+            object(),
+            ControlTable(),
+            transaction_client=client,
+            max_merge_attempts=3,
+            pause=pauses.append,
+        )
+
+        with self.assertRaises(TransactionConflict):
+            repository.complete_backfill_work("job_123", "AAPL", 2020)
+
+        self.assertEqual(len(client.calls), 3)
+        self.assertEqual(len(pauses), 2)
 
     def test_final_work_marks_the_job_meta_completed(self):
         client = TransactionClient()

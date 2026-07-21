@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 import json
 import re
 from typing import Callable
+from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
@@ -83,8 +84,18 @@ def _fetch(url: str, timeout: float) -> bytes:
             "User-Agent": "fauxnance-api/0.1 (educational market-data service)",
         },
     )
-    with urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed host
-        return response.read()
+    try:
+        with urlopen(request, timeout=timeout) as response:  # noqa: S310
+            return response.read()
+    except HTTPError as exc:
+        if exc.code == 400:
+            try:
+                body = exc.read()
+            finally:
+                exc.close()
+            if _is_no_data_payload(body):
+                return body
+        raise
 
 
 def _parse_chart(payload: bytes, *, start: date, end: date) -> EodResult:
@@ -93,6 +104,10 @@ def _parse_chart(payload: bytes, *, start: date, end: date) -> EodResult:
         chart = document["chart"]
         if chart.get("error"):
             message = chart["error"].get("description") or "Yahoo chart error"
+            if isinstance(message, str) and message.startswith(
+                "Data doesn't exist for startDate"
+            ):
+                return EodResult(candles=[])
             raise YahooError(str(message))
         result = chart["result"][0]
         timestamps = result["timestamp"]
@@ -140,3 +155,15 @@ def _parse_chart(payload: bytes, *, start: date, end: date) -> EodResult:
     all_candles.sort(key=lambda candle: candle.date)
     candles = [candle for candle in all_candles if start <= candle.date <= end]
     return EodResult(candles=candles)
+
+
+def _is_no_data_payload(payload: bytes) -> bool:
+    try:
+        message = json.loads(payload.decode("utf-8"))["chart"]["error"][
+            "description"
+        ]
+    except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
+        return False
+    return isinstance(message, str) and message.startswith(
+        "Data doesn't exist for startDate"
+    )
