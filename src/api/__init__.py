@@ -1,0 +1,2 @@
+"""Public Fauxnance HTTP API."""
+

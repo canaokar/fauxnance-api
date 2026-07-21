@@ -1,0 +1,2 @@
+"""Market-data source adapters."""
+
