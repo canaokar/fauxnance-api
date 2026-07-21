@@ -1,0 +1,3618 @@
+{
+  "version": 1,
+  "id": "us-phase2-v1",
+  "market": "US",
+  "source": {
+    "name": "datasets/s-and-p-500-companies",
+    "url": "https://github.com/datasets/s-and-p-500-companies",
+    "commit": "d8811227e3cf83caa03f17c7022a964dd19eee52",
+    "asOf": "2026-07-21"
+  },
+  "symbols": [
+    {
+      "symbol": "MMM",
+      "name": "3M",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AOS",
+      "name": "A. O. Smith",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ABT",
+      "name": "Abbott Laboratories",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ABBV",
+      "name": "AbbVie",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ACN",
+      "name": "Accenture",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ADBE",
+      "name": "Adobe Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AMD",
+      "name": "Advanced Micro Devices",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AES",
+      "name": "AES Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AFL",
+      "name": "Aflac",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "A",
+      "name": "Agilent Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "APD",
+      "name": "Air Products",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ABNB",
+      "name": "Airbnb",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AKAM",
+      "name": "Akamai Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ALB",
+      "name": "Albemarle Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ARE",
+      "name": "Alexandria Real Estate Equities",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ALGN",
+      "name": "Align Technology",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ALLE",
+      "name": "Allegion",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LNT",
+      "name": "Alliant Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ALL",
+      "name": "Allstate",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GOOGL",
+      "name": "Alphabet Inc. (Class A)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GOOG",
+      "name": "Alphabet Inc. (Class C)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MO",
+      "name": "Altria",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AMZN",
+      "name": "Amazon",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AMCR",
+      "name": "Amcor",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AEE",
+      "name": "Ameren",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AEP",
+      "name": "American Electric Power",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AXP",
+      "name": "American Express",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AIG",
+      "name": "American International Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AMT",
+      "name": "American Tower",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AWK",
+      "name": "American Water Works",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AMP",
+      "name": "Ameriprise Financial",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AME",
+      "name": "Ametek",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AMGN",
+      "name": "Amgen",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "APH",
+      "name": "Amphenol",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ADI",
+      "name": "Analog Devices",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AON",
+      "name": "Aon plc",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "APA",
+      "name": "APA Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "APO",
+      "name": "Apollo Global Management",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AMAT",
+      "name": "Applied Materials",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "APP",
+      "name": "AppLovin",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "APTV",
+      "name": "Aptiv",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ACGL",
+      "name": "Arch Capital Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ADM",
+      "name": "Archer Daniels Midland",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ARES",
+      "name": "Ares Management",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ANET",
+      "name": "Arista Networks",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AJG",
+      "name": "Arthur J. Gallagher & Co.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AIZ",
+      "name": "Assurant",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "T",
+      "name": "AT&T",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ATO",
+      "name": "Atmos Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ADSK",
+      "name": "Autodesk",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ADP",
+      "name": "Automatic Data Processing",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AZO",
+      "name": "AutoZone",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AVB",
+      "name": "AvalonBay Communities",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AVY",
+      "name": "Avery Dennison",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AXON",
+      "name": "Axon Enterprise",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BKR",
+      "name": "Baker Hughes",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BALL",
+      "name": "Ball Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BAC",
+      "name": "Bank of America",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BAX",
+      "name": "Baxter International",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BDX",
+      "name": "Becton Dickinson",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BRK.B",
+      "name": "Berkshire Hathaway",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BBY",
+      "name": "Best Buy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TECH",
+      "name": "Bio-Techne",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BIIB",
+      "name": "Biogen",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BLK",
+      "name": "BlackRock",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BX",
+      "name": "Blackstone Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XYZ",
+      "name": "Block, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BNY",
+      "name": "BNY Mellon",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BA",
+      "name": "Boeing",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BKNG",
+      "name": "Booking Holdings",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BSX",
+      "name": "Boston Scientific",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BMY",
+      "name": "Bristol Myers Squibb",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "AVGO",
+      "name": "Broadcom",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BR",
+      "name": "Broadridge Financial Solutions",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BRO",
+      "name": "Brown & Brown",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BF.B",
+      "name": "Brown–Forman",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BLDR",
+      "name": "Builders FirstSource",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BG",
+      "name": "Bunge Global",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BXP",
+      "name": "BXP, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CHRW",
+      "name": "C.H. Robinson",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CDNS",
+      "name": "Cadence Design Systems",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CPT",
+      "name": "Camden Property Trust",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "COF",
+      "name": "Capital One",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CAH",
+      "name": "Cardinal Health",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CCL",
+      "name": "Carnival Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CARR",
+      "name": "Carrier Global",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CVNA",
+      "name": "Carvana",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CASY",
+      "name": "Casey's",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CAT",
+      "name": "Caterpillar Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CBOE",
+      "name": "Cboe Global Markets",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CBRE",
+      "name": "CBRE Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CDW",
+      "name": "CDW Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "COR",
+      "name": "Cencora",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CNC",
+      "name": "Centene Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CNP",
+      "name": "CenterPoint Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CF",
+      "name": "CF Industries",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CRL",
+      "name": "Charles River Laboratories",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SCHW",
+      "name": "Charles Schwab Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CHTR",
+      "name": "Charter Communications",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CVX",
+      "name": "Chevron Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CMG",
+      "name": "Chipotle Mexican Grill",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CB",
+      "name": "Chubb Limited",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CHD",
+      "name": "Church & Dwight",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CIEN",
+      "name": "Ciena",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CI",
+      "name": "Cigna",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CINF",
+      "name": "Cincinnati Financial",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CTAS",
+      "name": "Cintas",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CSCO",
+      "name": "Cisco",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "C",
+      "name": "Citigroup",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CFG",
+      "name": "Citizens Financial Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CLX",
+      "name": "Clorox",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CME",
+      "name": "CME Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CMS",
+      "name": "CMS Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KO",
+      "name": "Coca-Cola Company (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CTSH",
+      "name": "Cognizant",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "COHR",
+      "name": "Coherent Corp.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "COIN",
+      "name": "Coinbase",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CL",
+      "name": "Colgate-Palmolive",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CMCSA",
+      "name": "Comcast",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FIX",
+      "name": "Comfort Systems USA",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "COP",
+      "name": "ConocoPhillips",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ED",
+      "name": "Consolidated Edison",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "STZ",
+      "name": "Constellation Brands",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CEG",
+      "name": "Constellation Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "COO",
+      "name": "Cooper Companies (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CPRT",
+      "name": "Copart",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GLW",
+      "name": "Corning Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CPAY",
+      "name": "Corpay",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CTVA",
+      "name": "Corteva",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CSGP",
+      "name": "CoStar Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "COST",
+      "name": "Costco",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CRH",
+      "name": "CRH plc",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CRWD",
+      "name": "CrowdStrike",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CCI",
+      "name": "Crown Castle",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CSX",
+      "name": "CSX Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CMI",
+      "name": "Cummins",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CVS",
+      "name": "CVS Health",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DHR",
+      "name": "Danaher Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DRI",
+      "name": "Darden Restaurants",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DDOG",
+      "name": "Datadog",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DVA",
+      "name": "DaVita",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DECK",
+      "name": "Deckers Brands",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DE",
+      "name": "Deere & Company",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DELL",
+      "name": "Dell Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DAL",
+      "name": "Delta Air Lines",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DVN",
+      "name": "Devon Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DXCM",
+      "name": "Dexcom",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FANG",
+      "name": "Diamondback Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DLR",
+      "name": "Digital Realty",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DG",
+      "name": "Dollar General",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DLTR",
+      "name": "Dollar Tree",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "D",
+      "name": "Dominion Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DPZ",
+      "name": "Domino's",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DASH",
+      "name": "DoorDash",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DOV",
+      "name": "Dover Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DOW",
+      "name": "Dow Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DHI",
+      "name": "D. R. Horton",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DTE",
+      "name": "DTE Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DUK",
+      "name": "Duke Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DD",
+      "name": "DuPont",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ETN",
+      "name": "Eaton Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EBAY",
+      "name": "eBay Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ECHO",
+      "name": "EchoStar",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ECL",
+      "name": "Ecolab",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EIX",
+      "name": "Edison International",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EW",
+      "name": "Edwards Lifesciences",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EA",
+      "name": "Electronic Arts",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ELV",
+      "name": "Elevance Health",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EME",
+      "name": "Emcor",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EMR",
+      "name": "Emerson Electric",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ETR",
+      "name": "Entergy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EOG",
+      "name": "EOG Resources",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EQT",
+      "name": "EQT Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EFX",
+      "name": "Equifax",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EQIX",
+      "name": "Equinix",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EQR",
+      "name": "Equity Residential",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ERIE",
+      "name": "Erie Indemnity",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ESS",
+      "name": "Essex Property Trust",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EL",
+      "name": "Estée Lauder Companies (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EG",
+      "name": "Everest Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EVRG",
+      "name": "Evergy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ES",
+      "name": "Eversource Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EXC",
+      "name": "Exelon",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EXE",
+      "name": "Expand Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EXPE",
+      "name": "Expedia Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EXPD",
+      "name": "Expeditors International",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "EXR",
+      "name": "Extra Space Storage",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XOM",
+      "name": "ExxonMobil",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FFIV",
+      "name": "F5, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FDS",
+      "name": "FactSet",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FICO",
+      "name": "Fair Isaac",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FAST",
+      "name": "Fastenal",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FRT",
+      "name": "Federal Realty Investment Trust",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FDX",
+      "name": "FedEx",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FDXF",
+      "name": "FedEx Freight",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FIS",
+      "name": "Fidelity National Information Services",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FITB",
+      "name": "Fifth Third Bancorp",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FSLR",
+      "name": "First Solar",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FE",
+      "name": "FirstEnergy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FISV",
+      "name": "Fiserv",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FLEX",
+      "name": "Flex Ltd.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "F",
+      "name": "Ford Motor Company",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FTNT",
+      "name": "Fortinet",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FTV",
+      "name": "Fortive",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FOXA",
+      "name": "Fox Corporation (Class A)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FOX",
+      "name": "Fox Corporation (Class B)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "BEN",
+      "name": "Franklin Resources",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "FCX",
+      "name": "Freeport-McMoRan",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GRMN",
+      "name": "Garmin",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IT",
+      "name": "Gartner",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GE",
+      "name": "GE Aerospace",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GEHC",
+      "name": "GE HealthCare",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GEV",
+      "name": "GE Vernova",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GEN",
+      "name": "Gen Digital",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GNRC",
+      "name": "Generac",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GD",
+      "name": "General Dynamics",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GIS",
+      "name": "General Mills",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GM",
+      "name": "General Motors",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GPC",
+      "name": "Genuine Parts Company",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GILD",
+      "name": "Gilead Sciences",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GPN",
+      "name": "Global Payments",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GL",
+      "name": "Globe Life",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GDDY",
+      "name": "GoDaddy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GS",
+      "name": "Goldman Sachs",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HAL",
+      "name": "Halliburton",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HIG",
+      "name": "Hartford (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HAS",
+      "name": "Hasbro",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HCA",
+      "name": "HCA Healthcare",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DOC",
+      "name": "Healthpeak Properties",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HSIC",
+      "name": "Henry Schein",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HSY",
+      "name": "Hershey Company (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HPE",
+      "name": "Hewlett Packard Enterprise",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HLT",
+      "name": "Hilton Worldwide",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HD",
+      "name": "Home Depot (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HONA",
+      "name": "Honeywell Aerospace",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HON",
+      "name": "Honeywell Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HRL",
+      "name": "Hormel Foods",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HST",
+      "name": "Host Hotels & Resorts",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HWM",
+      "name": "Howmet Aerospace",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HPQ",
+      "name": "HP Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HUBB",
+      "name": "Hubbell Incorporated",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HUM",
+      "name": "Humana",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HBAN",
+      "name": "Huntington Bancshares",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HII",
+      "name": "Huntington Ingalls Industries",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IBM",
+      "name": "IBM",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IEX",
+      "name": "IDEX Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IDXX",
+      "name": "Idexx Laboratories",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ITW",
+      "name": "Illinois Tool Works",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "INCY",
+      "name": "Incyte",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IR",
+      "name": "Ingersoll Rand",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PODD",
+      "name": "Insulet Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "INTC",
+      "name": "Intel",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IBKR",
+      "name": "Interactive Brokers",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ICE",
+      "name": "Intercontinental Exchange",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IFF",
+      "name": "International Flavors & Fragrances",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IP",
+      "name": "International Paper",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "INTU",
+      "name": "Intuit",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ISRG",
+      "name": "Intuitive Surgical",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IVZ",
+      "name": "Invesco",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "INVH",
+      "name": "Invitation Homes",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IQV",
+      "name": "IQVIA",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "IRM",
+      "name": "Iron Mountain",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "JBHT",
+      "name": "J.B. Hunt",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "JBL",
+      "name": "Jabil",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "JKHY",
+      "name": "Jack Henry & Associates",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "J",
+      "name": "Jacobs Solutions",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "JNJ",
+      "name": "Johnson & Johnson",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "JCI",
+      "name": "Johnson Controls",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "JPM",
+      "name": "JPMorgan Chase",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KVUE",
+      "name": "Kenvue",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KDP",
+      "name": "Keurig Dr Pepper",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KEY",
+      "name": "KeyCorp",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KEYS",
+      "name": "Keysight Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KMB",
+      "name": "Kimberly-Clark",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KIM",
+      "name": "Kimco Realty",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KMI",
+      "name": "Kinder Morgan",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KKR",
+      "name": "KKR & Co.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KLAC",
+      "name": "KLA Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KHC",
+      "name": "Kraft Heinz",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "KR",
+      "name": "Kroger",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LHX",
+      "name": "L3Harris",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LH",
+      "name": "Labcorp",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LRCX",
+      "name": "Lam Research",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LVS",
+      "name": "Las Vegas Sands",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LDOS",
+      "name": "Leidos",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LEN",
+      "name": "Lennar",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LII",
+      "name": "Lennox International",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LLY",
+      "name": "Lilly (Eli)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LIN",
+      "name": "Linde plc",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LYV",
+      "name": "Live Nation Entertainment",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LMT",
+      "name": "Lockheed Martin",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "L",
+      "name": "Loews Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LOW",
+      "name": "Lowe's",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LULU",
+      "name": "Lululemon Athletica",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LITE",
+      "name": "Lumentum",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LYB",
+      "name": "LyondellBasell",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MTB",
+      "name": "M&T Bank",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MPC",
+      "name": "Marathon Petroleum",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MAR",
+      "name": "Marriott International",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MRSH",
+      "name": "Marsh McLennan",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MLM",
+      "name": "Martin Marietta Materials",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MRVL",
+      "name": "Marvell Technology",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MAS",
+      "name": "Masco",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MA",
+      "name": "Mastercard",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MKC",
+      "name": "McCormick & Company",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MCD",
+      "name": "McDonald's",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MCK",
+      "name": "McKesson Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MDT",
+      "name": "Medtronic",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MRK",
+      "name": "Merck & Co.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "META",
+      "name": "Meta Platforms",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MET",
+      "name": "MetLife",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MTD",
+      "name": "Mettler Toledo",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MGM",
+      "name": "MGM Resorts",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MCHP",
+      "name": "Microchip Technology",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MU",
+      "name": "Micron Technology",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MAA",
+      "name": "Mid-America Apartment Communities",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MRNA",
+      "name": "Moderna",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TAP",
+      "name": "Molson Coors Beverage Company",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MDLZ",
+      "name": "Mondelez International",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MPWR",
+      "name": "Monolithic Power Systems",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MNST",
+      "name": "Monster Beverage",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MCO",
+      "name": "Moody's Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MS",
+      "name": "Morgan Stanley",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MOS",
+      "name": "Mosaic Company (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MSI",
+      "name": "Motorola Solutions",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "MSCI",
+      "name": "MSCI Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NDAQ",
+      "name": "Nasdaq, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NTAP",
+      "name": "NetApp",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NFLX",
+      "name": "Netflix",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NEM",
+      "name": "Newmont",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NWSA",
+      "name": "News Corp (Class A)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NWS",
+      "name": "News Corp (Class B)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NEE",
+      "name": "NextEra Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NKE",
+      "name": "Nike, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NI",
+      "name": "NiSource",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NDSN",
+      "name": "Nordson Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NSC",
+      "name": "Norfolk Southern",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NTRS",
+      "name": "Northern Trust",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NOC",
+      "name": "Northrop Grumman",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NCLH",
+      "name": "Norwegian Cruise Line Holdings",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NRG",
+      "name": "NRG Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NUE",
+      "name": "Nucor",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NVDA",
+      "name": "Nvidia",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NVR",
+      "name": "NVR, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NXPI",
+      "name": "NXP Semiconductors",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ORLY",
+      "name": "O’Reilly Automotive",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "OXY",
+      "name": "Occidental Petroleum",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ODFL",
+      "name": "Old Dominion",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "OMC",
+      "name": "Omnicom Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ON",
+      "name": "ON Semiconductor",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "OKE",
+      "name": "Oneok",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ORCL",
+      "name": "Oracle Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "OTIS",
+      "name": "Otis Worldwide",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PCAR",
+      "name": "Paccar",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PKG",
+      "name": "Packaging Corporation of America",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PLTR",
+      "name": "Palantir Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PANW",
+      "name": "Palo Alto Networks",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PSKY",
+      "name": "Paramount Skydance Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PH",
+      "name": "Parker Hannifin",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PAYX",
+      "name": "Paychex",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PYPL",
+      "name": "PayPal",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PNR",
+      "name": "Pentair",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PEP",
+      "name": "PepsiCo",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PFE",
+      "name": "Pfizer",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PCG",
+      "name": "PG&E Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PM",
+      "name": "Philip Morris International",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PSX",
+      "name": "Phillips 66",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PNW",
+      "name": "Pinnacle West Capital",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PNC",
+      "name": "PNC Financial Services",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PPG",
+      "name": "PPG Industries",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PPL",
+      "name": "PPL Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PFG",
+      "name": "Principal Financial Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PG",
+      "name": "Procter & Gamble",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PGR",
+      "name": "Progressive Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PLD",
+      "name": "Prologis",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PRU",
+      "name": "Prudential Financial",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PEG",
+      "name": "Public Service Enterprise Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PTC",
+      "name": "PTC Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PSA",
+      "name": "Public Storage",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PHM",
+      "name": "PulteGroup",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "PWR",
+      "name": "Quanta Services",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "QCOM",
+      "name": "Qualcomm",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DGX",
+      "name": "Quest Diagnostics",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "Q",
+      "name": "Qnity Electronics",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RL",
+      "name": "Ralph Lauren Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RJF",
+      "name": "Raymond James Financial",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RTX",
+      "name": "RTX Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "O",
+      "name": "Realty Income",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "REG",
+      "name": "Regency Centers",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "REGN",
+      "name": "Regeneron Pharmaceuticals",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RF",
+      "name": "Regions Financial Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RSG",
+      "name": "Republic Services",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RMD",
+      "name": "ResMed",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RVTY",
+      "name": "Revvity",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "HOOD",
+      "name": "Robinhood Markets",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ROK",
+      "name": "Rockwell Automation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ROL",
+      "name": "Rollins, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ROP",
+      "name": "Roper Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ROST",
+      "name": "Ross Stores",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "RCL",
+      "name": "Royal Caribbean Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SPGI",
+      "name": "S&P Global",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "CRM",
+      "name": "Salesforce",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SNDK",
+      "name": "Sandisk",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SBAC",
+      "name": "SBA Communications",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SLB",
+      "name": "Schlumberger",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "STX",
+      "name": "Seagate Technology",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SRE",
+      "name": "Sempra",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "NOW",
+      "name": "ServiceNow",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SHW",
+      "name": "Sherwin-Williams",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SPG",
+      "name": "Simon Property Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SWKS",
+      "name": "Skyworks Solutions",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SJM",
+      "name": "J.M. Smucker Company (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SW",
+      "name": "Smurfit Westrock",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SNA",
+      "name": "Snap-on",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SOLV",
+      "name": "Solventum",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SO",
+      "name": "Southern Company",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "LUV",
+      "name": "Southwest Airlines",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SWK",
+      "name": "Stanley Black & Decker",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SBUX",
+      "name": "Starbucks",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "STT",
+      "name": "State Street Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "STLD",
+      "name": "Steel Dynamics",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "STE",
+      "name": "Steris",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SYK",
+      "name": "Stryker Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SMCI",
+      "name": "Supermicro",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SYF",
+      "name": "Synchrony Financial",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SNPS",
+      "name": "Synopsys",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SYY",
+      "name": "Sysco",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TMUS",
+      "name": "T-Mobile US",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TROW",
+      "name": "T. Rowe Price",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TTWO",
+      "name": "Take-Two Interactive",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TPR",
+      "name": "Tapestry, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TRGP",
+      "name": "Targa Resources",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TGT",
+      "name": "Target Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TEL",
+      "name": "TE Connectivity",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TDY",
+      "name": "Teledyne Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TER",
+      "name": "Teradyne",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TSLA",
+      "name": "Tesla, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TXN",
+      "name": "Texas Instruments",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TPL",
+      "name": "Texas Pacific Land Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TXT",
+      "name": "Textron",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TMO",
+      "name": "Thermo Fisher Scientific",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TJX",
+      "name": "TJX Companies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TKO",
+      "name": "TKO Group Holdings",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TTD",
+      "name": "Trade Desk (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TSCO",
+      "name": "Tractor Supply",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TT",
+      "name": "Trane Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TDG",
+      "name": "TransDigm Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TRV",
+      "name": "Travelers Companies (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TRMB",
+      "name": "Trimble Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TFC",
+      "name": "Truist Financial",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TYL",
+      "name": "Tyler Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "TSN",
+      "name": "Tyson Foods",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "USB",
+      "name": "U.S. Bancorp",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "UBER",
+      "name": "Uber",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "UDR",
+      "name": "UDR, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ULTA",
+      "name": "Ulta Beauty",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "UNP",
+      "name": "Union Pacific Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "UAL",
+      "name": "United Airlines Holdings",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "UPS",
+      "name": "United Parcel Service",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "URI",
+      "name": "United Rentals",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "UNH",
+      "name": "UnitedHealth Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "UHS",
+      "name": "Universal Health Services",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VLO",
+      "name": "Valero Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VEEV",
+      "name": "Veeva Systems",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VTR",
+      "name": "Ventas",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VLTO",
+      "name": "Veralto",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VRSN",
+      "name": "Verisign",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VRSK",
+      "name": "Verisk Analytics",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VZ",
+      "name": "Verizon",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VRTX",
+      "name": "Vertex Pharmaceuticals",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VRT",
+      "name": "Vertiv",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VTRS",
+      "name": "Viatris",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VICI",
+      "name": "Vici Properties",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "V",
+      "name": "Visa Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VST",
+      "name": "Vistra Corp.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "VMC",
+      "name": "Vulcan Materials Company",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WRB",
+      "name": "W. R. Berkley Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "GWW",
+      "name": "W. W. Grainger",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WAB",
+      "name": "Wabtec",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WMT",
+      "name": "Walmart",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "DIS",
+      "name": "Walt Disney Company (The)",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WBD",
+      "name": "Warner Bros. Discovery",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WM",
+      "name": "Waste Management",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WAT",
+      "name": "Waters Corporation",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WEC",
+      "name": "WEC Energy Group",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WFC",
+      "name": "Wells Fargo",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WELL",
+      "name": "Welltower",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WST",
+      "name": "West Pharmaceutical Services",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WDC",
+      "name": "Western Digital",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WY",
+      "name": "Weyerhaeuser",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WSM",
+      "name": "Williams-Sonoma, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WMB",
+      "name": "Williams Companies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WTW",
+      "name": "Willis Towers Watson",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WDAY",
+      "name": "Workday, Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "WYNN",
+      "name": "Wynn Resorts",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XEL",
+      "name": "Xcel Energy",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XYL",
+      "name": "Xylem Inc.",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "YUM",
+      "name": "Yum! Brands",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ZBRA",
+      "name": "Zebra Technologies",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ZBH",
+      "name": "Zimmer Biomet",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "ZTS",
+      "name": "Zoetis",
+      "type": "equity",
+      "exchange": "US",
+      "currency": "USD"
+    },
+    {
+      "symbol": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLC",
+      "name": "Communication Services Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLY",
+      "name": "Consumer Discretionary Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLP",
+      "name": "Consumer Staples Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLE",
+      "name": "Energy Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLF",
+      "name": "Financial Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLV",
+      "name": "Health Care Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLI",
+      "name": "Industrial Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLB",
+      "name": "Materials Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLRE",
+      "name": "Real Estate Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLK",
+      "name": "Technology Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    },
+    {
+      "symbol": "XLU",
+      "name": "Utilities Select Sector SPDR Fund",
+      "type": "etf",
+      "exchange": "NYSE ARCA",
+      "currency": "USD"
+    }
+  ]
+}
