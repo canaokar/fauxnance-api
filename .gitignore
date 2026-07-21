@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+
+# Node / Serverless Framework
+node_modules/
+.serverless/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Editors / operating systems
+.DS_Store
+.idea/
+.vscode/
+
