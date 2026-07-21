@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "dev-us-phase1",
+  "market": "US",
+  "symbols": [
+    {"symbol": "AAPL", "name": "Apple Inc.", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "MSFT", "name": "Microsoft Corporation", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "AMZN", "name": "Amazon.com, Inc.", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "GOOGL", "name": "Alphabet Inc. Class A", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "META", "name": "Meta Platforms, Inc.", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "NVDA", "name": "NVIDIA Corporation", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "TSLA", "name": "Tesla, Inc.", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "JPM", "name": "JPMorgan Chase & Co.", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "JNJ", "name": "Johnson & Johnson", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "V", "name": "Visa Inc.", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "XOM", "name": "Exxon Mobil Corporation", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "WMT", "name": "Walmart Inc.", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "PG", "name": "The Procter & Gamble Company", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "HD", "name": "The Home Depot, Inc.", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "BAC", "name": "Bank of America Corporation", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "KO", "name": "The Coca-Cola Company", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "PFE", "name": "Pfizer Inc.", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "CSCO", "name": "Cisco Systems, Inc.", "type": "equity", "exchange": "NASDAQ", "currency": "USD"},
+    {"symbol": "DIS", "name": "The Walt Disney Company", "type": "equity", "exchange": "NYSE", "currency": "USD"},
+    {"symbol": "SPY", "name": "SPDR S&P 500 ETF Trust", "type": "etf", "exchange": "NYSE", "currency": "USD"}
+  ]
+}

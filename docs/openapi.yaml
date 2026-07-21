@@ -1,0 +1,375 @@
+openapi: 3.1.0
+info:
+  title: Fauxnance API
+  version: 1.0.0-phase1
+  description: >-
+    Phase 1 contract for the educational US end-of-day market-data API.
+    Market data is not for investment use.
+servers:
+  - url: https://{apiId}.execute-api.eu-west-2.amazonaws.com/v1
+    description: Raw API Gateway endpoint
+    variables:
+      apiId:
+        default: example
+        description: API Gateway HTTP API identifier
+security:
+  - ApiKeyAuth: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check API liveness and market-data freshness
+      security: []
+      responses:
+        "200":
+          description: The API is live; stale markets produce a degraded status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /usage:
+    get:
+      operationId: getUsage
+      summary: Get the calling key's daily quota status
+      description: This request itself consumes one quota unit for student keys.
+      responses:
+        "200":
+          description: Current usage for the calling key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageResponse"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/GatewayForbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /symbols/{symbol}:
+    parameters:
+      - $ref: "#/components/parameters/Symbol"
+    get:
+      operationId: getSymbol
+      summary: Get a symbol registry entry and EOD coverage
+      responses:
+        "200":
+          description: Symbol metadata and stored coverage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SymbolResponse"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/GatewayForbidden"
+        "404":
+          $ref: "#/components/responses/SymbolNotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /candles/{symbol}:
+    parameters:
+      - $ref: "#/components/parameters/Symbol"
+    get:
+      operationId: getCandles
+      summary: Get historical daily OHLCV candles
+      parameters:
+        - name: from
+          in: query
+          description: Inclusive start date; defaults to one year before today.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: Inclusive end date; defaults to today.
+          schema:
+            type: string
+            format: date
+        - name: interval
+          in: query
+          description: Phase 1 supports daily candles only.
+          schema:
+            type: string
+            enum: [1d]
+            default: 1d
+      responses:
+        "200":
+          description: Stored candles in ascending date order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CandlesResponse"
+        "202":
+          $ref: "#/components/responses/BackfillInProgress"
+        "400":
+          description: Invalid dates, interval, or a range over ten years.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/GatewayForbidden"
+        "404":
+          $ref: "#/components/responses/SymbolNotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: Instructor-issued Fauxnance API key.
+  parameters:
+    Symbol:
+      name: symbol
+      in: path
+      required: true
+      description: Case-insensitive Fauxnance symbol; responses use uppercase.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 32
+      examples:
+        usEquity:
+          value: AAPL
+  responses:
+    GatewayUnauthorized:
+      description: >-
+        The key is missing, malformed, unknown, or revoked. API Gateway can
+        generate this response, so the Fauxnance error envelope is not guaranteed.
+    GatewayForbidden:
+      description: >-
+        The key or cohort is inactive or expired. API Gateway can generate this
+        response, so the Fauxnance error envelope is not guaranteed.
+    SymbolNotFound:
+      description: The symbol is not in the Phase 1 registry.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    BackfillInProgress:
+      description: Historical data is being fetched; retry later.
+      headers:
+        Retry-After:
+          description: Seconds before the suggested retry.
+          schema:
+            type: integer
+            example: 60
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: The student's daily quota is exhausted.
+      headers:
+        Retry-After:
+          description: Seconds until 00:00 UTC.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Unexpected service failure.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    BaseMeta:
+      type: object
+      required: [asOf, disclaimer]
+      properties:
+        asOf:
+          type: string
+          format: date-time
+        disclaimer:
+          type: string
+          const: Educational data. Not for investment use.
+    MarketDataMeta:
+      allOf:
+        - $ref: "#/components/schemas/BaseMeta"
+        - type: object
+          required: [symbol, source]
+          properties:
+            symbol:
+              type: string
+            source:
+              type: string
+              enum: [stored, cache, synthetic, mixed]
+            partial:
+              type: boolean
+            availableFrom:
+              type: string
+              format: date
+    Coverage:
+      type: object
+      required: [eodFrom, eodTo]
+      properties:
+        eodFrom:
+          type: string
+          format: date
+        eodTo:
+          type: string
+          format: date
+    Symbol:
+      type: object
+      required: [symbol, name, type, exchange, currency, active, coverage]
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        name:
+          type: string
+          example: Apple Inc.
+        type:
+          type: string
+          enum: [equity, etf, fx, crypto]
+        exchange:
+          type: string
+          enum: [NYSE, NASDAQ, NSE, BSE, FX, CRYPTO]
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        active:
+          type: boolean
+        coverage:
+          $ref: "#/components/schemas/Coverage"
+    Candle:
+      type: object
+      required: [date, open, high, low, close, adjclose, volume, synthetic]
+      properties:
+        date:
+          type: string
+          format: date
+        open:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        close:
+          type: number
+        adjclose:
+          type: number
+        volume:
+          type: [integer, "null"]
+          minimum: 0
+        synthetic:
+          type: boolean
+    Error:
+      type: object
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          enum:
+            - VALIDATION_ERROR
+            - RANGE_TOO_LARGE
+            - ADMIN_ONLY
+            - SYMBOL_NOT_FOUND
+            - BACKFILL_IN_PROGRESS
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"
+    SymbolResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Symbol"
+        meta:
+          $ref: "#/components/schemas/MarketDataMeta"
+    CandlesResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [symbol, interval, currency, candles]
+          properties:
+            symbol:
+              type: string
+            interval:
+              type: string
+              const: 1d
+            currency:
+              type: string
+            candles:
+              type: array
+              items:
+                $ref: "#/components/schemas/Candle"
+        meta:
+          $ref: "#/components/schemas/MarketDataMeta"
+    UsageResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [keyLabel, cohort, dailyQuota, usedToday, resetsAt]
+          properties:
+            keyLabel:
+              type: [string, "null"]
+            cohort:
+              type: [string, "null"]
+            dailyQuota:
+              type: integer
+              minimum: 1
+            usedToday:
+              type: integer
+              minimum: 0
+            resetsAt:
+              type: string
+              format: date-time
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    HealthResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [status, markets]
+          properties:
+            status:
+              type: string
+              enum: [ok, degraded]
+            markets:
+              type: array
+              items:
+                type: object
+                required: [market, latestEod, stale]
+                properties:
+                  market:
+                    type: string
+                    example: US
+                  latestEod:
+                    type: [string, "null"]
+                    format: date
+                  stale:
+                    type: boolean
+        meta:
+          $ref: "#/components/schemas/BaseMeta"

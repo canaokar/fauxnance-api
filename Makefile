@@ -3,23 +3,27 @@ SHELL := /bin/sh
 ENV ?= dev
 AWS_PROFILE ?= megh.io
 AWS_REGION ?= eu-west-2
+STATE_BUCKET ?=
 TF_ENV_DIR := infrastructure/environments/$(ENV)
 
 .PHONY: bootstrap infra infra-plan deploy package remove destroy test format logs
 
 bootstrap:
+	@test -n "$(STATE_BUCKET)" || (echo "STATE_BUCKET is required" && exit 1)
 	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=infrastructure/bootstrap init
-	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=infrastructure/bootstrap apply
+	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=infrastructure/bootstrap apply -var="state_bucket_name=$(STATE_BUCKET)"
 
 infra:
-	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=$(TF_ENV_DIR) init
+	@test -n "$(STATE_BUCKET)" || (echo "STATE_BUCKET is required" && exit 1)
+	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=$(TF_ENV_DIR) init -backend-config="bucket=$(STATE_BUCKET)"
 	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=$(TF_ENV_DIR) apply
 
 infra-plan:
-	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=$(TF_ENV_DIR) init
+	@test -n "$(STATE_BUCKET)" || (echo "STATE_BUCKET is required" && exit 1)
+	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=$(TF_ENV_DIR) init -backend-config="bucket=$(STATE_BUCKET)"
 	AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) terraform -chdir=$(TF_ENV_DIR) plan
 
-deploy: infra
+deploy:
 	npx serverless deploy --stage $(ENV) --region $(AWS_REGION) --aws-profile $(AWS_PROFILE)
 
 package:
