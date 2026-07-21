@@ -75,6 +75,22 @@ class DynamoDBIngestRepository:
 
         self._data.put_item(Item={"PK": "SYMBOLS", "SK": symbol, **common})
 
+    def seed_symbol(self, metadata: Mapping[str, str], *, market: str) -> None:
+        """Register a symbol before its first candle without inventing coverage."""
+
+        common = _symbol_metadata(metadata, market)
+        symbol = common["symbol"]
+        try:
+            self._data.put_item(
+                Item={"PK": f"SYM#{symbol}", "SK": "META", **common},
+                ConditionExpression="attribute_not_exists(PK)",
+            )
+        except Exception as exc:
+            if not _is_conditional_failure(exc):
+                raise
+            self._refresh_symbol_metadata(common)
+        self._data.put_item(Item={"PK": "SYMBOLS", "SK": symbol, **common})
+
     def advance_symbol_coverage(
         self, symbol: str, first_date: date, last_date: date
     ) -> None:
@@ -175,6 +191,7 @@ class DynamoDBIngestRepository:
                     },
                 ]
             )
+            self._complete_job_if_done(job_id, timestamp)
             return True
         except Exception as exc:
             if not _is_transaction_cancelled(exc):
@@ -183,8 +200,45 @@ class DynamoDBIngestRepository:
                 Key=work_key, ConsistentRead=True
             ).get("Item")
             if item and item.get("state") == "completed":
+                self._complete_job_if_done(job_id, timestamp)
                 return False
             raise
+
+    def _complete_job_if_done(self, job_id: str, timestamp: str) -> None:
+        if self._control is None:  # pragma: no cover - guarded by caller
+            return
+        key = {"PK": f"JOB#{job_id}", "SK": "META"}
+        item = self._control.get_item(Key=key, ConsistentRead=True).get("Item")
+        if not item:
+            return
+        completed = int(item.get("completed", 0))
+        total = int(item.get("total", 0))
+        if total < 1 or completed < total:
+            return
+        try:
+            self._control.update_item(
+                Key=key,
+                UpdateExpression=(
+                    "SET #state = :completedState, completedAt = :now, "
+                    "updatedAt = :now"
+                ),
+                ConditionExpression=(
+                    "#completed >= :total AND "
+                    "(attribute_not_exists(#state) OR #state <> :completedState)"
+                ),
+                ExpressionAttributeNames={
+                    "#state": "state",
+                    "#completed": "completed",
+                },
+                ExpressionAttributeValues={
+                    ":completedState": "completed",
+                    ":total": total,
+                    ":now": timestamp,
+                },
+            )
+        except Exception as exc:
+            if not _is_conditional_failure(exc):
+                raise
 
     def _merge_chunk(
         self, symbol: str, month: str, incoming: Sequence[Candle]
@@ -258,6 +312,20 @@ def _candle_item(candle: Candle) -> dict[str, Any]:
         "c": candle.close,
         "v": candle.volume,
         "src": candle.source,
+    }
+
+
+def _symbol_metadata(
+    metadata: Mapping[str, str], market: str
+) -> dict[str, Any]:
+    return {
+        "symbol": metadata["symbol"],
+        "name": metadata["name"],
+        "type": metadata["type"],
+        "exchange": metadata["exchange"],
+        "currency": metadata["currency"],
+        "market": market,
+        "active": True,
     }
 
 

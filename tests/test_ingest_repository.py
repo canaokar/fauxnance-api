@@ -31,6 +31,15 @@ class CoverageTable:
         return {}
 
 
+class SeedTable:
+    def __init__(self):
+        self.puts = []
+
+    def put_item(self, **request):
+        self.puts.append(request)
+        return {}
+
+
 class TransactionClient:
     def __init__(self, error=None):
         self.error = error
@@ -45,14 +54,43 @@ class TransactionClient:
 class ControlTable:
     name = "fauxnance-dev-control"
 
-    def __init__(self, state=None):
+    def __init__(self, state=None, job=None):
         self.state = state
+        self.job = job
+        self.updates = []
 
-    def get_item(self, **_request):
+    def get_item(self, *, Key, **_request):
+        if Key["SK"] == "META" and self.job is not None:
+            return {"Item": self.job}
         return {"Item": {"state": self.state}} if self.state else {}
+
+    def update_item(self, **request):
+        self.updates.append(request)
+        return {}
 
 
 class IngestRepositoryTests(unittest.TestCase):
+    def test_seed_symbol_registers_metadata_without_fake_coverage(self):
+        table = SeedTable()
+        repository = DynamoDBIngestRepository(table)
+
+        repository.seed_symbol(
+            {
+                "symbol": "AAPL",
+                "name": "Apple Inc.",
+                "type": "equity",
+                "exchange": "US",
+                "currency": "USD",
+            },
+            market="US",
+        )
+
+        self.assertEqual(len(table.puts), 2)
+        meta = table.puts[0]["Item"]
+        self.assertEqual((meta["PK"], meta["SK"]), ("SYM#AAPL", "META"))
+        self.assertNotIn("coverage", meta)
+        self.assertEqual(table.puts[1]["Item"]["PK"], "SYMBOLS")
+
     def test_symbol_coverage_only_expands(self):
         table = CoverageTable()
         repository = DynamoDBIngestRepository(table)
@@ -97,6 +135,29 @@ class IngestRepositoryTests(unittest.TestCase):
         changed = repository.complete_backfill_work("job_123", "AAPL", 2020)
 
         self.assertFalse(changed)
+
+    def test_final_work_marks_the_job_meta_completed(self):
+        client = TransactionClient()
+        control = ControlTable(job={"completed": 2, "total": 2, "state": "running"})
+        repository = DynamoDBIngestRepository(
+            object(), control, transaction_client=client
+        )
+
+        repository.complete_backfill_work(
+            "job_123",
+            "AAPL",
+            2020,
+            now=datetime(2026, 7, 21, 12, tzinfo=UTC),
+        )
+
+        self.assertEqual(len(control.updates), 1)
+        request = control.updates[0]
+        self.assertEqual(request["Key"], {"PK": "JOB#job_123", "SK": "META"})
+        self.assertEqual(
+            request["ExpressionAttributeValues"][":completedState"],
+            "completed",
+        )
+        self.assertIn("#completed >= :total", request["ConditionExpression"])
 
 
 if __name__ == "__main__":
