@@ -12,6 +12,15 @@ class TransactionCancelled(Exception):
     response = {"Error": {"Code": "TransactionCanceledException"}}
 
 
+class MissingDocumentPath(Exception):
+    response = {
+        "Error": {
+            "Code": "ValidationException",
+            "Message": "The document path provided in the update expression is invalid",
+        }
+    }
+
+
 class CoverageTable:
     def __init__(self):
         self.coverage = {"eodFrom": "2020-01-02", "eodTo": "2025-12-31"}
@@ -31,12 +40,46 @@ class CoverageTable:
         return {}
 
 
+class MissingCoverageTable:
+    def __init__(self):
+        self.coverage = None
+        self.calls = []
+
+    def update_item(self, **request):
+        self.calls.append(request)
+        expression = request["UpdateExpression"]
+        if "if_not_exists" in expression:
+            self.coverage = {}
+            return {}
+        if self.coverage is None:
+            raise MissingDocumentPath()
+        field = request["ExpressionAttributeNames"]["#field"]
+        self.coverage[field] = request["ExpressionAttributeValues"][":value"]
+        return {}
+
+
 class SeedTable:
     def __init__(self):
         self.puts = []
 
     def put_item(self, **request):
         self.puts.append(request)
+        return {}
+
+
+class ExistingSeedTable(SeedTable):
+    def __init__(self):
+        super().__init__()
+        self.updates = []
+
+    def put_item(self, **request):
+        self.puts.append(request)
+        if len(self.puts) == 1:
+            raise ConditionalFailure()
+        return {}
+
+    def update_item(self, **request):
+        self.updates.append(request)
         return {}
 
 
@@ -88,8 +131,30 @@ class IngestRepositoryTests(unittest.TestCase):
         self.assertEqual(len(table.puts), 2)
         meta = table.puts[0]["Item"]
         self.assertEqual((meta["PK"], meta["SK"]), ("SYM#AAPL", "META"))
-        self.assertNotIn("coverage", meta)
+        self.assertEqual(meta["coverage"], {})
         self.assertEqual(table.puts[1]["Item"]["PK"], "SYMBOLS")
+
+    def test_seed_symbol_repairs_missing_coverage_map_on_existing_metadata(self):
+        table = ExistingSeedTable()
+        repository = DynamoDBIngestRepository(table)
+
+        repository.seed_symbol(
+            {
+                "symbol": "AAPL",
+                "name": "Apple Inc.",
+                "type": "equity",
+                "exchange": "US",
+                "currency": "USD",
+            },
+            market="US",
+        )
+
+        refresh = table.updates[0]
+        self.assertIn(
+            "#coverage = if_not_exists(#coverage, :emptyCoverage)",
+            refresh["UpdateExpression"],
+        )
+        self.assertEqual(refresh["ExpressionAttributeValues"][":emptyCoverage"], {})
 
     def test_symbol_coverage_only_expands(self):
         table = CoverageTable()
@@ -106,6 +171,20 @@ class IngestRepositoryTests(unittest.TestCase):
             table.coverage,
             {"eodFrom": "2019-01-02", "eodTo": "2026-07-21"},
         )
+
+    def test_symbol_coverage_repairs_legacy_missing_parent_map(self):
+        table = MissingCoverageTable()
+        repository = DynamoDBIngestRepository(table)
+
+        repository.advance_symbol_coverage(
+            "AAPL", date(2019, 1, 2), date(2026, 7, 21)
+        )
+
+        self.assertEqual(
+            table.coverage,
+            {"eodFrom": "2019-01-02", "eodTo": "2026-07-21"},
+        )
+        self.assertEqual(len(table.calls), 4)
 
     def test_backfill_completion_updates_work_and_job_in_one_transaction(self):
         client = TransactionClient()

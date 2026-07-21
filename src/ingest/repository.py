@@ -82,7 +82,12 @@ class DynamoDBIngestRepository:
         symbol = common["symbol"]
         try:
             self._data.put_item(
-                Item={"PK": f"SYM#{symbol}", "SK": "META", **common},
+                Item={
+                    "PK": f"SYM#{symbol}",
+                    "SK": "META",
+                    **common,
+                    "coverage": {},
+                },
                 ConditionExpression="attribute_not_exists(PK)",
             )
         except Exception as exc:
@@ -101,23 +106,49 @@ class DynamoDBIngestRepository:
         )
         for field, value, comparison in updates:
             try:
-                self._data.update_item(
-                    Key=key,
-                    UpdateExpression="SET #coverage.#field = :value",
-                    ConditionExpression=(
-                        "attribute_exists(PK) AND "
-                        f"(attribute_not_exists(#coverage.#field) OR "
-                        f"#coverage.#field {comparison} :value)"
-                    ),
-                    ExpressionAttributeNames={
-                        "#coverage": "coverage",
-                        "#field": field,
-                    },
-                    ExpressionAttributeValues={":value": value},
-                )
+                self._advance_coverage_field(key, field, value, comparison)
             except Exception as exc:
-                if not _is_conditional_failure(exc):
+                if _is_missing_document_path(exc):
+                    self._ensure_coverage_map(key)
+                    try:
+                        self._advance_coverage_field(key, field, value, comparison)
+                    except Exception as retry_exc:
+                        if not _is_conditional_failure(retry_exc):
+                            raise
+                elif not _is_conditional_failure(exc):
                     raise
+
+    def _advance_coverage_field(
+        self,
+        key: Mapping[str, str],
+        field: str,
+        value: str,
+        comparison: str,
+    ) -> None:
+        self._data.update_item(
+            Key=key,
+            UpdateExpression="SET #coverage.#field = :value",
+            ConditionExpression=(
+                "attribute_exists(PK) AND "
+                f"(attribute_not_exists(#coverage.#field) OR "
+                f"#coverage.#field {comparison} :value)"
+            ),
+            ExpressionAttributeNames={
+                "#coverage": "coverage",
+                "#field": field,
+            },
+            ExpressionAttributeValues={":value": value},
+        )
+
+    def _ensure_coverage_map(self, key: Mapping[str, str]) -> None:
+        self._data.update_item(
+            Key=key,
+            UpdateExpression=(
+                "SET #coverage = if_not_exists(#coverage, :emptyCoverage)"
+            ),
+            ExpressionAttributeNames={"#coverage": "coverage"},
+            ExpressionAttributeValues={":emptyCoverage": {}},
+        )
 
     def advance_market_status(
         self, market: str, latest_eod: date, *, now: datetime | None = None
@@ -289,9 +320,14 @@ class DynamoDBIngestRepository:
             Key={"PK": f"SYM#{common['symbol']}", "SK": "META"},
             UpdateExpression=(
                 "SET #name = :name, #type = :type, exchange = :exchange, "
-                "currency = :currency, market = :market, active = :active"
+                "currency = :currency, market = :market, active = :active, "
+                "#coverage = if_not_exists(#coverage, :emptyCoverage)"
             ),
-            ExpressionAttributeNames={"#name": "name", "#type": "type"},
+            ExpressionAttributeNames={
+                "#name": "name",
+                "#type": "type",
+                "#coverage": "coverage",
+            },
             ExpressionAttributeValues={
                 ":name": common["name"],
                 ":type": common["type"],
@@ -299,6 +335,7 @@ class DynamoDBIngestRepository:
                 ":currency": common["currency"],
                 ":market": common["market"],
                 ":active": True,
+                ":emptyCoverage": {},
             },
         )
 
@@ -339,6 +376,15 @@ def _serialize(values: Mapping[str, Any]) -> dict[str, Any]:
 def _is_conditional_failure(exc: Exception) -> bool:
     response = getattr(exc, "response", {})
     return response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
+
+
+def _is_missing_document_path(exc: Exception) -> bool:
+    response = getattr(exc, "response", {})
+    error = response.get("Error", {})
+    return (
+        error.get("Code") == "ValidationException"
+        and "document path" in str(error.get("Message", "")).lower()
+    )
 
 
 def _is_transaction_cancelled(exc: Exception) -> bool:

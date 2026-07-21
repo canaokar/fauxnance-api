@@ -59,8 +59,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         queue_url,
     )
 
+    universe = load_universe(args.universe)
+    work_count = len(universe.symbols) * (args.to_year - args.from_year + 1)
+    print(
+        f"Preparing {work_count} work item(s); this can take several minutes...",
+        flush=True,
+    )
     job_id = jobs.create_job(
-        load_universe(args.universe),
+        universe,
         from_year=args.from_year,
         to_year=args.to_year,
         job_id=args.job_id,
