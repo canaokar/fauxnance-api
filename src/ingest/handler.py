@@ -71,7 +71,11 @@ def handler(
                 raise ValueError("SQS record body must be a string")
             active_worker.process(body)
         except Exception:
-            _LOGGER.exception("Ingest record failed", extra={"messageId": identifier})
+            _LOGGER.exception(
+                "Ingest record failed: messageId=%s body=%s",
+                identifier,
+                record.get("body"),
+            )
             failures.append({"itemIdentifier": identifier})
     return {"batchItemFailures": failures}
 
