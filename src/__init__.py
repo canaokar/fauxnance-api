@@ -1,0 +1,1 @@
+"""Fauxnance Lambda application package."""
