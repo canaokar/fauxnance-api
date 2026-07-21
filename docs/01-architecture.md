@@ -104,8 +104,7 @@ CLI for key issuance, cohort management, backfill triggers, and ingest-job statu
 - **Immutable observations.** Once an EOD candle is accepted, its raw values do
   not change. Corporate-action metadata may change, so read-time `adjclose` may
   change without rewriting the raw candle.
-- **One region** (`ap-south-1` or `us-east-1` — operator's choice at deploy time;
-  all IaC is region-agnostic, with Terraform as the source of truth for region).
+- **One region:** `eu-west-2`, deployed through the `megh.io` shared AWS profile.
   No multi-region ambitions.
 - **Two IaC tools, one owner per resource.** Serverless Framework deploys
   compute and wiring; Terraform deploys everything stateful, shared, or secret.

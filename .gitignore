@@ -15,7 +15,6 @@ node_modules/
 *.tfstate
 *.tfstate.*
 *.tfplan
-.terraform.lock.hcl
 terraform.tfvars
 override.tf
 override.tf.json
@@ -31,4 +30,3 @@ override.tf.json
 .DS_Store
 .idea/
 .vscode/
-

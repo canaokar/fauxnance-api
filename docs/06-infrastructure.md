@@ -89,9 +89,9 @@ fauxnance-api/
 - **Environments:** TF uses `environments/<env>/` directories; SF uses
   `--stage <env>`. The names must match (`dev`, `prod`) — the SSM prefix is the
   join key.
-- **Region-agnostic:** one `aws_region` TF variable; SF reads
-  `${ssm:/fauxnance/${sls:stage}/infra/region}` — Terraform is the source of
-  truth for region too.
+- **Region/account:** Terraform and Serverless use `eu-west-2` and the `megh.io`
+  shared AWS profile. Terraform still publishes the region through the `/infra/`
+  handoff contract for runtime configuration and diagnostics.
 
 ## Deploy order & workflow
 
