@@ -8,9 +8,8 @@ Design docs in `docs/`. Exit criterion: operator sign-off on the specs.
 
 The smallest thing a student could actually use.
 
-- Terraform base (state backend, `data` + `control` tables, SSM handoff params,
-  dev environment) + `serverless.yml` (HTTP API, authorizer, api Lambda) —
-  proving the TF→SSM→SF handoff end-to-end is itself a Phase 1 deliverable.
+- Flat Terraform root (`data` + `control` tables and the admin allowlist) plus
+  `serverless.yml` (HTTP API, authorizer, API Lambda).
 - Serverless Framework v4.39.0 selected and pinned; its one-time account login is
   an operator deployment prerequisite (see [06-infrastructure](06-infrastructure.md)).
 - Auth path end-to-end: one-time bootstrap script → admin key; seeded student key

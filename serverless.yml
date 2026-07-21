@@ -6,8 +6,8 @@ plugins:
   - serverless-iam-roles-per-function
 
 custom:
-  dataTableName: ${ssm:/fauxnance/${sls:stage}/infra/data_table_name}
-  controlTableName: ${ssm:/fauxnance/${sls:stage}/infra/control_table_name}
+  dataTableName: fauxnance-${sls:stage}-data
+  controlTableName: fauxnance-${sls:stage}-control
   awsAccountId: ${aws:accountId}
   adminKeyIdsParameter: /fauxnance/${sls:stage}/admin/key_ids
   pythonRequirements:

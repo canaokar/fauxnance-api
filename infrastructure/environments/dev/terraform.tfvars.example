@@ -1,3 +1,0 @@
-# Keep the documented free-tier provisioned allocation by default. Switch to
-# PAY_PER_REQUEST only if a cohort outgrows it.
-billing_mode = "PROVISIONED"

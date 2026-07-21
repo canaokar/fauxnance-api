@@ -35,12 +35,12 @@ npm ci
 
 ## Phase 1 deployment order
 
-Choose a globally unique Terraform state bucket name and run each step from the
-repository root. Terraform is intentionally separate from Serverless deployment.
+Run each step from the repository root. Terraform is intentionally separate
+from Serverless deployment.
 
 ```sh
-make bootstrap STATE_BUCKET=<globally-unique-bucket-name>
-make infra STATE_BUCKET=<globally-unique-bucket-name>
+make infra-plan
+make infra
 npx serverless login
 .venv/bin/python scripts/bootstrap_admin.py --seed-dev-student
 .venv/bin/python scripts/backfill_dev.py

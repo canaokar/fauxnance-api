@@ -108,4 +108,4 @@ CLI for key issuance, cohort management, backfill triggers, and ingest-job statu
   No multi-region ambitions.
 - **Two IaC tools, one owner per resource.** Serverless Framework deploys
   compute and wiring; Terraform deploys everything stateful, shared, or secret.
-  The boundary and handoff contract are defined in [06-infrastructure](06-infrastructure.md).
+  The Phase 1 boundary is defined in [06-infrastructure](06-infrastructure.md).

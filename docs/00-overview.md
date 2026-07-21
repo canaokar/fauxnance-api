@@ -59,14 +59,12 @@ clearly flagged synthetic data so a training session does not stall.
 | Upstreams | Stooq, Yahoo (unofficial), Finnhub, Alpha Vantage, CoinGecko, frankfurter.dev | Portfolio of free tiers; adapter layer isolates each |
 | Budget | Near-zero / free tier | Personal AWS account, training side project |
 | Scope | Data API now, simulation later | Students building trading logic *is* the capstone |
-| IaC | Hybrid *(revised 2026-07-21)*: Serverless Framework for compute/API wiring, Terraform in `infrastructure/` for everything stateful/shared/secret | Plays to each tool's strength; mirrors bank platform-vs-app-team ownership; see [06-infrastructure](06-infrastructure.md) for the hard ownership rule |
+| IaC | Serverless Framework for compute/API wiring; one flat Terraform root for Phase 1 persistence | Keeps `sls remove` away from stored data without adding infrastructure layers; see [06-infrastructure](06-infrastructure.md) |
 
-> **Note on IaC:** two tools by design, with a hard boundary. The **Serverless
-> Framework** owns stateless compute and its wiring (Lambdas, HTTP API, schedules,
-> packaging, and compute-specific alarms); **Terraform** owns everything stateful,
-> shared, or secret (DynamoDB, SQS, SSM, their alarms, and budget). They
-> communicate only through SSM handoff parameters, and `sls remove` can never
-> destroy data. A custom domain is deferred. Full rationale and ownership map in
+> **Note on IaC:** the **Serverless Framework** owns the Phase 1 Lambdas and HTTP
+> API; **Terraform** owns the two DynamoDB tables and admin allowlist. The dev
+> table names are deterministic, so no handoff layer is needed. Future resources
+> are added only when their roadmap phase is implemented. See
 > [06-infrastructure](06-infrastructure.md).
 
 ## Repository layout (target)
