@@ -5,10 +5,12 @@ A free, serverless market-data API built for bank graduate-training capstone pro
 upstream sources, stores it in DynamoDB, and serves it behind per-student API keys —
 so trainees stop fighting paid data vendors and start building.
 
-**Status: Phase 2 implementation complete; AWS deployment pending.** The
-repository includes the HTTP API, API-key quotas, a 515-symbol US universe,
-resumable historical backfills, and scheduled Yahoo-to-Alpha EOD ingestion with
-SQS retries and a DLQ. The API continues to use API Gateway's generated URL.
+**Status: Phase 2 is implemented and deployed to AWS; the initial historical
+backfill and one-week schedule observation remain.** The repository includes the
+HTTP API, API-key quotas, a 515-symbol US universe, resumable historical
+backfills, and scheduled Yahoo-to-Alpha EOD ingestion with SQS retries and a
+DLQ. The API uses API Gateway's generated URL:
+`https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com`.
 
 | Doc | Contents |
 |---|---|
