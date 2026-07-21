@@ -7,7 +7,7 @@ so trainees stop fighting paid data vendors and start building.
 
 **Status: Phase 1 walking skeleton implemented.** The repository includes the
 Terraform foundation, Serverless HTTP API, cached API-key authorizer, daily
-quotas, US EOD endpoints, Stooq adapter, bootstrap/backfill utilities, and the
+quotas, US EOD endpoints, Yahoo adapter, bootstrap/backfill utilities, and the
 [OpenAPI contract](docs/openapi.yaml). AWS deployment is an operator action.
 
 | Doc | Contents |

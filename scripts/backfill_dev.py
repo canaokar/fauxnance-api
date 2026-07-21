@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Manually backfill the versioned Phase 1 dev universe from Stooq."""
+"""Manually backfill the versioned Phase 1 dev universe from Yahoo."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPOSITORY_ROOT))
 
-from src.adapters.stooq import StooqAdapter
+from src.adapters.yahoo import YahooAdapter
 from src.shared.market_data import Candle
 
 
@@ -273,7 +273,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     table_name = args.data_table or f"fauxnance-{args.stage}-data"
     table = session.resource("dynamodb").Table(table_name)
     failures = run_backfill(
-        StooqAdapter(),
+        YahooAdapter(),
         DynamoDBDevBackfillRepository(table),
         load_universe(args.universe),
         start=args.start,

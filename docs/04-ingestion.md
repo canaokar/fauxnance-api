@@ -39,8 +39,8 @@ Shared adapter machinery (in `src/shared/`):
 
 | Adapter | Key needed | Free limit (approx) | Used for | Risk notes |
 |---|---|---|---|---|
-| **Stooq** | No | Unmetered CSV downloads (be polite) | Bulk US EOD, deep history | Quiet ToS; low change risk; primary US EOD workhorse |
-| **Yahoo Finance** (unofficial) | No | Unofficial; throttles/breaks without notice | NSE/BSE EOD + quotes, US quote fallback, symbol discovery | **Fragile & ToS-grey.** Isolated behind one adapter and always backed by graceful degradation; an official India fallback is planned for v1.1. Educational use, low volume, respectful backoff. |
+| **Stooq** | No | CSV endpoint currently requires a browser proof-of-work check | Deferred pending a supported machine-to-machine path | Phase 1 does not bypass the browser check observed in July 2026. |
+| **Yahoo Finance** (unofficial) | No | Unofficial; throttles/breaks without notice | Phase 1 US EOD backfill; later NSE/BSE EOD + quotes, US quote fallback, symbol discovery | **Fragile & ToS-grey.** Isolated behind one adapter and always backed by graceful degradation; an official India fallback is planned for v1.1. Educational use, low volume, respectful backoff. |
 | **Finnhub** | Yes (SSM) | 60 req/min | US real-time-ish quotes | Solid free tier; key already held |
 | **Alpha Vantage** | Yes (SSM) | 25 req/day | Emergency EOD/FX fallback only | Tiny quota — last in every chain |
 | **CoinGecko** | Yes (free Demo key in SSM) | Demo-plan budget configured from current published limits | Recent crypto EOD + quotes | Public historical access is limited to 365 days; Yahoo supplies deep-history backfill |
@@ -50,7 +50,7 @@ Shared adapter machinery (in `src/shared/`):
 
 | Need | Chain |
 |---|---|
-| US EOD ingest | Stooq → Yahoo → Alpha Vantage → retry/DLQ |
+| US EOD ingest | Yahoo → Alpha Vantage → retry/DLQ (Stooq paused pending a supported machine endpoint) |
 | India EOD ingest | Yahoo → retry/DLQ (NSE bhavcopy is deferred to v1.1) |
 | FX EOD ingest | frankfurter → Yahoo → Alpha Vantage → retry/DLQ |
 | Crypto recent EOD ingest | CoinGecko → Yahoo → retry/DLQ |
@@ -121,7 +121,7 @@ idempotent). Historical backfills fetch the symbol's complete action history onc
 - A `JOB#` item tracks symbol-year work-unit totals; one SQS message and one
   `WORK#<symbol>#YEAR#<YYYY>` state item per unit keep invocations small and
   resumable—a failed year retries alone.
-- Initial full backfill (~700 symbols × 10 y) is dominated by Stooq/Yahoo
+- Initial full backfill (~700 symbols × 10 y) is dominated by Yahoo
   politeness delays, not compute: budget ~2–3 hours wall-clock at concurrency 2.
   Run once per environment, then it's nightly deltas forever.
 

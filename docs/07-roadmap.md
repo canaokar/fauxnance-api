@@ -15,12 +15,14 @@ The smallest thing a student could actually use.
   an operator deployment prerequisite (see [06-infrastructure](06-infrastructure.md)).
 - Auth path end-to-end: one-time bootstrap script → admin key; seeded student key
   → authorizer → quota counter → `429`.
-- Stooq adapter + `GET /v1/candles/{symbol}` + `GET /v1/symbols/{symbol}` for a
+- Yahoo chart adapter + `GET /v1/candles/{symbol}` + `GET /v1/symbols/{symbol}` for a
   ~20-symbol dev universe, manually backfilled 10 years.
 - `GET /v1/health` backed by market-status items; `GET /v1/usage` keyed by the
   authorizer's non-secret `keyId`.
-- Source acceptance spike before the full build: prove the current Stooq path
-  returns ten years of AAPL data and capture a fixture for adapter tests.
+- Source acceptance spike before the full build: the Stooq CSV path returned a
+  browser proof-of-work page in July 2026, so Phase 1 does not automate around
+  it. Prove the Yahoo chart path returns ten years of AAPL data and capture its
+  response shape in adapter tests.
 - `docs/openapi.yaml` started; becomes the contract of record.
 
 **Exit criterion:** a curl with a dev key returns 10 years of real AAPL candles.
@@ -29,7 +31,7 @@ The smallest thing a student could actually use.
 
 - EventBridge schedules → dispatcher → SQS → worker; DLQ + alarms.
 - Backfill jobs (`JOB#` tracking, symbol-year messages, resumability).
-- Yahoo + Alpha Vantage adapters, fallback chains, source budgets, circuit breakers.
+- Alpha Vantage adapter, fallback chains, source budgets, circuit breakers.
 - Full curated US universe (S&P 500 + ETFs) backfilled in prod.
 
 **Exit criterion:** nightly cron keeps the US universe current with zero manual steps for a week.
