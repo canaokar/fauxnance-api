@@ -5,10 +5,10 @@ A free, serverless market-data API built for bank graduate-training capstone pro
 upstream sources, stores it in DynamoDB, and serves it behind per-student API keys —
 so trainees stop fighting paid data vendors and start building.
 
-**Status: Phase 1 walking skeleton implemented.** The repository includes the
-Terraform foundation, Serverless HTTP API, cached API-key authorizer, daily
-quotas, US EOD endpoints, Yahoo adapter, bootstrap/backfill utilities, and the
-[OpenAPI contract](docs/openapi.yaml). AWS deployment is an operator action.
+**Status: Phase 2 implementation complete; AWS deployment pending.** The
+repository includes the HTTP API, API-key quotas, a 515-symbol US universe,
+resumable historical backfills, and scheduled Yahoo-to-Alpha EOD ingestion with
+SQS retries and a DLQ. The API continues to use API Gateway's generated URL.
 
 | Doc | Contents |
 |---|---|
@@ -33,7 +33,7 @@ npm ci
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-## Phase 1 deployment order
+## Deployment and initial backfill
 
 Run each step from the repository root. Terraform is intentionally separate
 from Serverless deployment.
@@ -43,9 +43,19 @@ make infra-plan
 make infra
 npx serverless login
 .venv/bin/python scripts/bootstrap_admin.py --seed-dev-student
-.venv/bin/python scripts/backfill_dev.py
 make deploy
+.venv/bin/python scripts/enqueue_backfill.py
 ```
 
 The bootstrap script prints the admin and optional dev-student keys once. Store
-them securely; only their SHA-256 hashes are written to DynamoDB.
+them securely; only their SHA-256 hashes are written to DynamoDB. The backfill
+command prints its job ID; rerun it with `--job-id <id>` and the original year
+bounds to re-enqueue only unfinished work.
+
+`make deploy` prints the default API Gateway endpoint. It can also be retrieved
+later with `npx serverless info --stage dev --region eu-west-2 --aws-profile megh.io`.
+No custom domain is configured.
+
+Alpha Vantage is an optional emergency fallback. To enable it, create
+`/fauxnance/dev/upstreams/alpha_vantage/api_key` as an SSM `SecureString`; a
+missing parameter leaves the primary Yahoo path operational.

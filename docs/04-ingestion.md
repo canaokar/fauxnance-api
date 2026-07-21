@@ -31,8 +31,8 @@ Shared adapter machinery (in `src/shared/`):
   (e.g. Alpha Vantage `25/day`, Finnhub `55/min` — set slightly under the
   published free limits). A call first reserves budget; no budget → skip to the
   next adapter in the chain.
-- **Circuit breaker** — N consecutive failures opens the circuit for 15 min;
-  half-open probes one call.
+- **Circuit breaker** — three consecutive failures pause a source for 15 min;
+  calls may probe it again after the cooldown.
 - **Timeouts** — 3 s per upstream call on the request path, 10 s on ingest paths.
 
 ## Source portfolio (v1)
@@ -40,9 +40,9 @@ Shared adapter machinery (in `src/shared/`):
 | Adapter | Key needed | Free limit (approx) | Used for | Risk notes |
 |---|---|---|---|---|
 | **Stooq** | No | CSV endpoint currently requires a browser proof-of-work check | Deferred pending a supported machine-to-machine path | Phase 1 does not bypass the browser check observed in July 2026. |
-| **Yahoo Finance** (unofficial) | No | Unofficial; throttles/breaks without notice | Phase 1 US EOD backfill; later NSE/BSE EOD + quotes, US quote fallback, symbol discovery | **Fragile & ToS-grey.** Isolated behind one adapter and always backed by graceful degradation; an official India fallback is planned for v1.1. Educational use, low volume, respectful backoff. |
+| **Yahoo Finance** (unofficial) | No | Unofficial; throttles/breaks without notice | Primary US EOD backfill and nightly ingest; later NSE/BSE and quotes | **Fragile & ToS-grey.** Isolated behind one adapter, low volume, and protected by a circuit cooldown. |
 | **Finnhub** | Yes (SSM) | 60 req/min | US real-time-ish quotes | Solid free tier; key already held |
-| **Alpha Vantage** | Yes (SSM) | 25 req/day | Emergency EOD/FX fallback only | Tiny quota — last in every chain |
+| **Alpha Vantage** | Optional SSM key | [25 requests/day](https://www.alphavantage.co/support/) | Limited emergency US EOD fallback | Missing key disables only this fallback; its tiny quota cannot cover the full universe during a Yahoo-wide outage. |
 | **CoinGecko** | Yes (free Demo key in SSM) | Demo-plan budget configured from current published limits | Recent crypto EOD + quotes | Public historical access is limited to 365 days; Yahoo supplies deep-history backfill |
 | **frankfurter.dev** (ECB rates) | No | Unmetered | FX EOD reference rates | ECB daily fixes; EUR-based, cross-rates computed |
 
@@ -61,24 +61,22 @@ Shared adapter machinery (in `src/shared/`):
 
 ## Scheduled bulk ingest
 
-EventBridge cron schedules (defined as Serverless Framework `schedule` events on
-the dispatcher Lambda, all UTC), which fans out to SQS in ~25-symbol batches:
+The Phase 2 EventBridge schedule is defined on the dispatcher Lambda in
+`serverless.yml`:
 
 | Schedule | Cron | Universe slice |
 |---|---|---|
-| US close | `30 21 * * MON-FRI` (≈17:30 ET soft close +1h buffer; DST drift accepted, documented) | US equities + ETFs |
-| India close | `30 11 * * MON-FRI` (≈17:00 IST) | NSE/BSE |
-| FX daily | `0 17 * * MON-FRI` (after ECB ~16:00 CET fix) | FX pairs |
-| Crypto daily | `15 0 * * *` | Crypto (UTC day close) |
-| Quote warmer *(optional, off by default)* | every 5 min during market hours | Top ~50 symbols — pre-warms the quote cache before a class demo |
+| US close | `cron(30 23 ? * MON-FRI *)` | Active US equities + ETFs |
 
-Worker behavior: reserved concurrency 2; for each symbol in a batch it picks the
+India, FX, crypto, and quote warming are Phase 3 or later.
+
+Worker behavior: reserved concurrency 2; for each one-symbol message it picks the
 first capability-matching adapter with budget, fetches, normalizes (dates to
 exchange-local trading dates, numbers to `Decimal`), upserts the current month
 chunk, and advances `coverage.eodTo` on the symbol's `META` item. A failure for
-one symbol does not discard successful symbols. Lambda partial-batch responses
-return only failed SQS records for retry. Candle writes are idempotent; job
-completion uses a conditional state transition so retries cannot over-count.
+one symbol retries only that SQS record. Lambda partial-batch responses return
+only failed records. Candle writes are idempotent; job completion uses a
+conditional state transition so retries cannot over-count.
 
 Chunk upserts use the optimistic `revision` merge described in
 [03-data-model](03-data-model.md), because duplicate SQS deliveries and an
@@ -89,8 +87,8 @@ reach the DLQ; synthesis remains exclusively on the API read path.
 Two versioned queue payloads are sufficient:
 
 ```json
-{ "v": 1, "kind": "eod_batch", "market": "US",
-  "symbols": ["AAPL", "MSFT"], "date": "2026-07-20" }
+{ "v": 1, "kind": "eod_batch", "market": "US", "symbol": "AAPL",
+  "from": "2026-07-15", "to": "2026-07-21" }
 ```
 
 ```json
@@ -104,28 +102,23 @@ return null volume when the upstream has no meaningful figure.
 
 ### Corporate actions (splits & dividends)
 
-The nightly equity jobs also refresh each symbol's `ADJ` item (see
-[03-data-model](03-data-model.md)). Yahoo's chart API returns split and dividend
-events alongside candles (`events=div,splits`) through `EodResult`; for
-Stooq-sourced US symbols, a weekly Yahoo sweep (`0 6 * * SAT`) fetches events.
-Alpha Vantage's adjusted endpoint is premium and is not a zero-cost v1 fallback.
-Ingestion resolves and stores each event's one-event adjustment factor (and the
-pre-event reference close for dividends), so reads never need candles outside
-their requested range. The `ADJ` write is a full-item replace (small list,
-idempotent). Historical backfills fetch the symbol's complete action history once.
+Corporate-action ingestion remains a Phase 3 task. Through Phase 2, no `ADJ`
+items are produced, so `adjclose` equals raw `close`. Alpha Vantage uses the raw
+`TIME_SERIES_DAILY` function; its adjusted endpoint is premium.
 
 ## Historical backfill (10+ years)
 
-- Triggered per symbol-set via `POST /v1/admin/ingest/backfill` or the CLI; also
-  auto-enqueued (last 10 y) when an unknown symbol is first requested.
+- Triggered by `scripts/enqueue_backfill.py`. Admin HTTP triggering and lazy
+  unknown-symbol backfills are deferred.
 - A `JOB#` item tracks symbol-year work-unit totals; one SQS message and one
   `WORK#<symbol>#YEAR#<YYYY>` state item per unit keep invocations small and
   resumable—a failed year retries alone.
-- Initial full backfill (~700 symbols × 10 y) is dominated by Yahoo
+- The checked-in `us-v1` snapshot contains 503 S&P 500 securities plus 12
+  explicit ETFs. Its initial 10-year backfill is dominated by Yahoo
   politeness delays, not compute: budget ~2–3 hours wall-clock at concurrency 2.
   Run once per environment, then it's nightly deltas forever.
 
-## On-demand (lazy) path
+## On-demand (lazy) path — Phase 3
 
 Request for a symbol not in the registry:
 
@@ -144,7 +137,7 @@ Until a registered symbol has at least one real candle, candle requests keep
 returning `202`; synthetic history is not invented from an arbitrary starting
 price.
 
-## Synthetic fallback (`src/synthetic/`)
+## Synthetic fallback (`src/synthetic/`) — Phase 3
 
 Purpose: keep already-initialized class symbols usable during an upstream outage.
 This is not a simulation product; it is an always-flagged degradation layer.
@@ -173,11 +166,10 @@ This is not a simulation product; it is an always-flagged degradation layer.
 
 ## Data quality rules
 
-- Reject upstream rows failing sanity checks: `low ≤ open,close ≤ high`,
-  `high > 0`, volume is null or ≥ 0, |day-over-day close change| < 60 % — unless the `ADJ`
-  item shows a split on that date, which legitimizes the jump. A large move with
-  **no** known action is logged for review (usually a missed split — the check
-  doubles as corporate-action QA).
+- Phase 2 rejects rows unless prices are finite and positive,
+  `low ≤ open,close ≤ high`, volume is null or non-negative, dates are unique
+  and within the requested range, and the source is present. The action-aware
+  large-move check is deferred with corporate actions to Phase 3.
 - Conflicting values between sources: first-written wins (immutability tenet);
   discrepancies logged with both values for spot-checking.
 - Every persisted candle row stores `src` (adapter name) because fallback sources

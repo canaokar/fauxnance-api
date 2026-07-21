@@ -59,10 +59,10 @@ clearly flagged synthetic data so a training session does not stall.
 | Upstreams | Stooq, Yahoo (unofficial), Finnhub, Alpha Vantage, CoinGecko, frankfurter.dev | Portfolio of free tiers; adapter layer isolates each |
 | Budget | Near-zero / free tier | Personal AWS account, training side project |
 | Scope | Data API now, simulation later | Students building trading logic *is* the capstone |
-| IaC | Serverless Framework for compute/API wiring; one flat Terraform root for Phase 1 persistence | Keeps `sls remove` away from stored data without adding infrastructure layers; see [06-infrastructure](06-infrastructure.md) |
+| IaC | Serverless Framework for compute/API wiring and transient queues; one flat Terraform root for durable persistence | Keeps stored data outside `sls remove` without adding infrastructure layers; see [06-infrastructure](06-infrastructure.md) |
 
-> **Note on IaC:** the **Serverless Framework** owns the Phase 1 Lambdas and HTTP
-> API; **Terraform** owns the two DynamoDB tables and admin allowlist. The dev
+> **Note on IaC:** the **Serverless Framework** owns Lambdas, the HTTP API,
+> schedules, and transient queues; **Terraform** owns the two DynamoDB tables and admin allowlist. The dev
 > table names are deterministic, so no handoff layer is needed. Future resources
 > are added only when their roadmap phase is implemented. See
 > [06-infrastructure](06-infrastructure.md).

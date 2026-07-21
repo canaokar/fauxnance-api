@@ -19,6 +19,6 @@ Terraform state is local and ignored by Git. The root uses the `megh.io` shared
 AWS profile in `eu-west-2`, reading `~/.aws/config` and
 `~/.aws/credentials`.
 
-Queues, scheduled ingestion, upstream credentials, remote state, reusable
-modules, and additional environments are deferred until a phase actually needs
-them.
+Phase 2 does not add Terraform resources. Serverless Framework owns its transient
+ingest queue, DLQ, alarm, and schedule. Remote state, reusable modules, and
+additional environments remain deferred.

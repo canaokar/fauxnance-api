@@ -26,14 +26,17 @@ The smallest thing a student could actually use.
 
 **Exit criterion:** a curl with a dev key returns 10 years of real AAPL candles.
 
-## Phase 2 — Ingestion machinery
+## Phase 2 — Ingestion machinery *(implemented 2026-07-21; deployment observation pending)*
 
-- EventBridge schedules → dispatcher → SQS → worker; DLQ + alarms.
+- US EventBridge schedule → dispatcher → SQS → worker; DLQ + alarm.
 - Backfill jobs (`JOB#` tracking, symbol-year messages, resumability).
 - Alpha Vantage adapter, fallback chains, source budgets, circuit breakers.
-- Full curated US universe (S&P 500 + ETFs) backfilled in prod.
+- Versioned 515-symbol US universe (503 S&P 500 securities + 12 ETFs), ready for
+  the initial queued backfill.
 
-**Exit criterion:** nightly cron keeps the US universe current with zero manual steps for a week.
+**Exit criterion:** nightly cron keeps the US universe current with zero manual
+steps for a week. This requires post-deployment observation and is not claimed by
+the code-complete status above.
 
 ## Phase 3 — Full coverage + quotes + synthetic
 

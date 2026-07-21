@@ -41,10 +41,10 @@ flowchart LR
 |---|---|---|
 | API front door | **API Gateway HTTP API (v2)** | ~1/3 the cost of REST API; supports Lambda authorizers. We forgo REST-API "usage plans" because our quota model lives in DynamoDB anyway (per-key daily quotas, cohort grouping, instant revoke) — richer than usage plans and portable. |
 | Auth | **Lambda authorizer** (payload v2, response caching 300 s) | Looks up hashed key in the control table, attaches key/cohort context to the request. Cached so most requests skip the lookup. |
-| Compute | **Five Python 3.13 Lambdas** (arm64) | `api` (monolithic router for public routes), `authorizer`, `dispatcher`, `ingest-worker`, and `admin`. Monolithic public/admin handlers keep deploy units manageable; split later only if profiling demands it. |
+| Compute | **Four Python 3.13 Lambdas** (arm64) | `api`, `authorizer`, `dispatcher`, and `ingest-worker`. The admin API remains deferred to Phase 4. |
 | Storage | **DynamoDB, provisioned capacity within the always-free 25 RCU/25 WCU** | EOD-scale data is small (see [03-data-model](03-data-model.md)); provisioned-free beats on-demand pricing at near-zero budget. Switch to on-demand only if throttling appears. |
-| Scheduling | **EventBridge scheduled rules** | Cron per market close (US, India, daily FX/crypto). Free tier covers them. |
-| Ingest fan-out | **SQS standard queue + DLQ** | Dispatcher enqueues symbol batches; worker consumes with per-source rate budgets. DLQ + redrive gives free retry semantics and visibility into failed symbols. |
+| Scheduling | **EventBridge scheduled rule** | Phase 2 runs one US weekday cron. Other markets are added with Phase 3. |
+| Ingest fan-out | **SQS standard queue + DLQ** | Dispatcher enqueues one symbol per message for exact retries. DLQ + redrive gives retry semantics and visibility into failed symbols. |
 | Secrets | **SSM Parameter Store `SecureString`** (standard tier, free) | Upstream API keys (Finnhub, Alpha Vantage, CoinGecko Demo). Not Secrets Manager — $0.40/secret/month is the entire monthly budget. |
 | Observability | **CloudWatch Logs (14-day retention) + a few alarms** | Structured JSON logs via Lambda Powertools; alarms on DLQ depth, authorizer errors, 5xx rate. |
 
@@ -78,12 +78,12 @@ flowchart LR
 
 1. An EventBridge scheduled rule fires per market after close (see [04-ingestion](04-ingestion.md)
    for the cron table).
-2. A tiny dispatcher enumerates the symbol universe for that market and enqueues
-   SQS messages in batches of ~25 symbols.
+2. A tiny dispatcher enumerates active US symbols and sends one seven-day
+   overlap request per SQS message, using SQS API batches of ten.
 3. Ingest worker (reserved concurrency = 2, to respect upstream rate limits)
-   pulls batches, calls the preferred adapter for each symbol, normalizes, writes candle
+   pulls messages, calls the preferred adapter, normalizes, writes candle
    chunks + updates each symbol's `coverage.eodTo` value.
-4. Failures retry via SQS; poisoned batches land in the DLQ and trip an alarm.
+4. Failures retry via SQS; poisoned messages land in the DLQ and trip an alarm.
 
 Each successful market ingest conditionally advances a small market-status item
 (`MARKET#<market>` / `STATUS`). The unauthenticated health route reads those four
@@ -91,9 +91,8 @@ items rather than scanning the symbol registry.
 
 ### 4. Admin path
 
-`/v1/admin/*` routes require an **admin key** (separate key type, same auth
-mechanism, additionally pinned by an SSM-stored allowlist). Used by the operator
-CLI for key issuance, cohort management, backfill triggers, and ingest-job status.
+The public admin API is deferred to Phase 4. Phase 2 backfills are started by the
+operator-only `scripts/enqueue_backfill.py` command.
 
 ## Tenets
 
@@ -106,6 +105,6 @@ CLI for key issuance, cohort management, backfill triggers, and ingest-job statu
   change without rewriting the raw candle.
 - **One region:** `eu-west-2`, deployed through the `megh.io` shared AWS profile.
   No multi-region ambitions.
-- **Two IaC tools, one owner per resource.** Serverless Framework deploys
-  compute and wiring; Terraform deploys everything stateful, shared, or secret.
-  The Phase 1 boundary is defined in [06-infrastructure](06-infrastructure.md).
+- **Two IaC tools, one owner per resource.** Terraform owns durable DynamoDB
+  data and the admin allowlist. Serverless owns compute, API Gateway, and its
+  transient application queue. See [06-infrastructure](06-infrastructure.md).

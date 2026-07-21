@@ -121,9 +121,9 @@ is required at the expected cohort size.
 | `fauxnance-data` | 15 | 10 | A full 10-year candle query is roughly a 23-RCU eventual-consistency burst; low average traffic and burst capacity should absorb normal use, but Phase 1 must load-test this assumption |
 | `fauxnance-control` | 10 | 15 | 50 keys exhausting 2,000/day average about 1.2 writes/s; short class-start bursts rely on DynamoDB burst capacity and SDK retries and must be included in the Phase 1 load check |
 
-Throttling response: retries with jitter in the SDK, plus a documented escape
-hatch — flip either table to on-demand via a Terraform variable if a cohort
-outgrows free tier (cost then ~$1–3/mo, still trivial).
+Throttling response: retries with jitter in the SDK. If a cohort outgrows the
+provisioned capacity, change the two billing-mode declarations in the flat
+Terraform file to on-demand (cost then roughly $1–3/month).
 
 ## Streams / TTL
 
