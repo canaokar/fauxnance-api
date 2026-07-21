@@ -4,14 +4,11 @@
 from __future__ import annotations
 
 import argparse
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 import json
 from pathlib import Path
-import random
 import sys
-import time
 from typing import Any, Callable, Mapping, Sequence
 
 # Keep the documented direct invocation working without installing the project.
@@ -20,7 +17,9 @@ if str(_REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPOSITORY_ROOT))
 
 from src.adapters.yahoo import YahooAdapter
-from src.shared.market_data import Candle
+from src.ingest.repository import (
+    DynamoDBIngestRepository as DynamoDBDevBackfillRepository,
+)
 
 
 DEFAULT_UNIVERSE = (
@@ -71,110 +70,6 @@ def load_universe(path: Path) -> Universe:
     )
 
 
-class DynamoDBDevBackfillRepository:
-    """Small write-side repository used only by the Phase 1 manual backfill."""
-
-    def __init__(
-        self,
-        table: Any,
-        *,
-        max_merge_attempts: int = 5,
-        pause: Callable[[float], None] = time.sleep,
-    ) -> None:
-        self._table = table
-        self._max_merge_attempts = max_merge_attempts
-        self._pause = pause
-
-    def write_candles(self, symbol: str, candles: Sequence[Candle]) -> None:
-        chunks: dict[str, list[Candle]] = defaultdict(list)
-        for candle in candles:
-            chunks[candle.date.strftime("%Y-%m")].append(candle)
-        for month, month_candles in sorted(chunks.items()):
-            self._merge_chunk(symbol, month, month_candles)
-
-    def write_symbol(
-        self,
-        metadata: Mapping[str, str],
-        *,
-        market: str,
-        first_date: date,
-        last_date: date,
-    ) -> None:
-        symbol = metadata["symbol"]
-        common = {
-            "symbol": symbol,
-            "name": metadata["name"],
-            "type": metadata["type"],
-            "exchange": metadata["exchange"],
-            "currency": metadata["currency"],
-            "market": market,
-            "active": True,
-            "coverage": {
-                "eodFrom": first_date.isoformat(),
-                "eodTo": last_date.isoformat(),
-            },
-        }
-        self._table.put_item(Item={"PK": f"SYM#{symbol}", "SK": "META", **common})
-        self._table.put_item(Item={"PK": "SYMBOLS", "SK": symbol, **common})
-
-    def advance_market_status(
-        self, market: str, latest_eod: date, *, now: datetime | None = None
-    ) -> None:
-        timestamp = _utc_timestamp(now)
-        try:
-            self._table.update_item(
-                Key={"PK": f"MARKET#{market}", "SK": "STATUS"},
-                UpdateExpression="SET latestEod = :latest, updatedAt = :updated",
-                ConditionExpression=(
-                    "attribute_not_exists(latestEod) OR latestEod < :latest"
-                ),
-                ExpressionAttributeValues={
-                    ":latest": latest_eod.isoformat(),
-                    ":updated": timestamp,
-                },
-            )
-        except Exception as exc:
-            if not _is_conditional_failure(exc):
-                raise
-
-    def _merge_chunk(
-        self, symbol: str, month: str, incoming: Sequence[Candle]
-    ) -> None:
-        key = {"PK": f"SYM#{symbol}", "SK": f"EOD#{month}"}
-        for attempt in range(self._max_merge_attempts):
-            existing = self._table.get_item(Key=key, ConsistentRead=True).get("Item")
-            prior_candles = existing.get("candles", []) if existing else []
-            by_date = {str(row["d"]): dict(row) for row in prior_candles}
-            for candle in incoming:
-                by_date.setdefault(candle.date.isoformat(), _candle_item(candle))
-            revision = int(existing.get("revision", 0)) if existing else 0
-            item = {
-                **key,
-                "revision": revision + 1,
-                "candles": [by_date[candle_date] for candle_date in sorted(by_date)],
-            }
-            request: dict[str, Any] = {"Item": item}
-            if existing:
-                request.update(
-                    {
-                        "ConditionExpression": "revision = :expected",
-                        "ExpressionAttributeValues": {":expected": revision},
-                    }
-                )
-            else:
-                request["ConditionExpression"] = "attribute_not_exists(PK)"
-            try:
-                self._table.put_item(**request)
-                return
-            except Exception as exc:
-                if (
-                    not _is_conditional_failure(exc)
-                    or attempt + 1 == self._max_merge_attempts
-                ):
-                    raise
-                self._pause(random.uniform(0.02, 0.1) * (attempt + 1))
-
-
 def run_backfill(
     adapter: Any,
     repository: DynamoDBDevBackfillRepository,
@@ -211,30 +106,6 @@ def run_backfill(
     if latest is not None:
         repository.advance_market_status(universe.market, latest)
     return failures
-
-
-def _candle_item(candle: Candle) -> dict[str, Any]:
-    return {
-        "d": candle.date.isoformat(),
-        "o": candle.open,
-        "h": candle.high,
-        "l": candle.low,
-        "c": candle.close,
-        "v": candle.volume,
-        "src": candle.source,
-    }
-
-
-def _is_conditional_failure(exc: Exception) -> bool:
-    response = getattr(exc, "response", {})
-    return response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
-
-
-def _utc_timestamp(now: datetime | None) -> str:
-    value = now or datetime.now(UTC)
-    if value.tzinfo is None:
-        raise ValueError("now must be timezone-aware")
-    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _ten_years_before(value: date) -> date:
