@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+import json
 import unittest
 
 from src.ingest.repository import DynamoDBIngestRepository
@@ -204,6 +205,53 @@ class IngestRepositoryTests(unittest.TestCase):
         self.assertEqual(len(writes), 2)
         self.assertIn("#state = :completed", writes[0]["Update"]["UpdateExpression"])
         self.assertIn("ADD #completed :one", writes[1]["Update"]["UpdateExpression"])
+        self.assertEqual(
+            writes[0]["Update"]["Key"],
+            {"PK": "JOB#job_123", "SK": "WORK#AAPL#YEAR#2020"},
+        )
+        self.assertEqual(
+            writes[1]["Update"]["ExpressionAttributeValues"][":one"], 1
+        )
+
+    def test_resource_client_serializes_transaction_values_exactly_once(self):
+        import boto3
+
+        class RequestCaptured(Exception):
+            pass
+
+        dynamodb = boto3.resource(
+            "dynamodb",
+            region_name="eu-west-2",
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
+        )
+        control = dynamodb.Table("fauxnance-dev-control")
+        captured = {}
+
+        def capture_request(model, params, **_kwargs):
+            del model
+            captured.update(json.loads(params["body"]))
+            raise RequestCaptured()
+
+        control.meta.client.meta.events.register_first(
+            "before-call.dynamodb.TransactWriteItems", capture_request
+        )
+        repository = DynamoDBIngestRepository(object(), control)
+
+        with self.assertRaises(RequestCaptured):
+            repository.complete_backfill_work(
+                "job_123",
+                "AAPL",
+                2020,
+                now=datetime(2026, 7, 21, 12, tzinfo=UTC),
+            )
+
+        writes = captured["TransactItems"]
+        self.assertEqual(writes[0]["Update"]["Key"]["PK"], {"S": "JOB#job_123"})
+        self.assertEqual(
+            writes[1]["Update"]["ExpressionAttributeValues"][":one"],
+            {"N": "1"},
+        )
 
     def test_duplicate_completed_work_does_not_increment_job_again(self):
         client = TransactionClient(TransactionCancelled())

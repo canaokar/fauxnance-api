@@ -191,7 +191,7 @@ class DynamoDBIngestRepository:
                     {
                         "Update": {
                             "TableName": self._control.name,
-                            "Key": _serialize(work_key),
+                            "Key": work_key,
                             "UpdateExpression": (
                                 "SET #state = :completed, completedAt = :now"
                             ),
@@ -201,23 +201,25 @@ class DynamoDBIngestRepository:
                                 "#state <> :completed)"
                             ),
                             "ExpressionAttributeNames": {"#state": "state"},
-                            "ExpressionAttributeValues": _serialize(
-                                {":completed": "completed", ":now": timestamp}
-                            ),
+                            "ExpressionAttributeValues": {
+                                ":completed": "completed",
+                                ":now": timestamp,
+                            },
                         }
                     },
                     {
                         "Update": {
                             "TableName": self._control.name,
-                            "Key": _serialize(job_key),
+                            "Key": job_key,
                             "UpdateExpression": (
                                 "SET updatedAt = :now ADD #completed :one"
                             ),
                             "ConditionExpression": "attribute_exists(PK)",
                             "ExpressionAttributeNames": {"#completed": "completed"},
-                            "ExpressionAttributeValues": _serialize(
-                                {":now": timestamp, ":one": 1}
-                            ),
+                            "ExpressionAttributeValues": {
+                                ":now": timestamp,
+                                ":one": 1,
+                            },
                         }
                     },
                 ]
@@ -364,13 +366,6 @@ def _symbol_metadata(
         "market": market,
         "active": True,
     }
-
-
-def _serialize(values: Mapping[str, Any]) -> dict[str, Any]:
-    from boto3.dynamodb.types import TypeSerializer
-
-    serializer = TypeSerializer()
-    return {key: serializer.serialize(value) for key, value in values.items()}
 
 
 def _is_conditional_failure(exc: Exception) -> bool:
