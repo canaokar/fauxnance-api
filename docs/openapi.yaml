@@ -1,13 +1,21 @@
 openapi: 3.1.0
 info:
   title: Fauxnance API
-  version: 1.0.0-phase3
+  version: 1.0.0-phase4
   description: >-
-    Educational multi-market end-of-day and best-effort quote API.
-    Market data is delayed and not for investment use.
+    Educational multi-market end-of-day and best-effort quote API, including
+    instructor-only cohort operations. Market data is delayed and not for
+    investment use. Interactive Swagger UI is available at /v1/docs.
 servers:
   - url: https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1
     description: Deployed dev API Gateway endpoint; no custom domain is configured.
+tags:
+  - name: Admin cohorts
+    description: Instructor-only cohort lifecycle operations.
+  - name: Admin keys
+    description: Instructor-only student-key issuance and revocation.
+  - name: Admin ingestion
+    description: Instructor-only curated symbol and historical-ingest operations.
 security:
   - ApiKeyAuth: []
 paths:
@@ -181,13 +189,294 @@ paths:
           $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/InternalError"
+  /admin/cohorts:
+    post:
+      tags: [Admin cohorts]
+      operationId: createCohort
+      summary: Create a training cohort
+      description: Requires an allowlisted admin API key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCohortRequest"
+      responses:
+        "201":
+          description: Cohort created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CohortResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [Admin cohorts]
+      operationId: listCohorts
+      summary: List cohorts with today's aggregate usage
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageCursor"
+      responses:
+        "200":
+          description: A page of cohorts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CohortListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /admin/cohorts/{cohortId}:
+    parameters:
+      - $ref: "#/components/parameters/CohortId"
+    get:
+      tags: [Admin cohorts]
+      operationId: getCohort
+      summary: Get one cohort with today's aggregate usage
+      responses:
+        "200":
+          description: Cohort details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CohortDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          $ref: "#/components/responses/AdminNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Admin cohorts]
+      operationId: updateCohort
+      summary: Update cohort lifecycle fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCohortRequest"
+      responses:
+        "200":
+          description: Updated cohort.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CohortResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          $ref: "#/components/responses/AdminNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /admin/keys:
+    post:
+      tags: [Admin keys]
+      operationId: issueKeys
+      summary: Issue up to 25 student API keys
+      description: >-
+        Provide exactly one of labels or count. Plaintext key values appear in
+        this response once and cannot be recovered later.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueKeysRequest"
+      responses:
+        "201":
+          description: Keys issued. Store the plaintext values securely now.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedKeysResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          $ref: "#/components/responses/AdminNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [Admin keys]
+      operationId: listKeys
+      summary: List keys and today's usage without secret material
+      parameters:
+        - name: cohortId
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_-]{1,80}$"
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageCursor"
+      responses:
+        "200":
+          description: A page of redacted key metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeyListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          $ref: "#/components/responses/AdminNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /admin/keys/{keyId}:
+    parameters:
+      - $ref: "#/components/parameters/KeyId"
+    delete:
+      tags: [Admin keys]
+      operationId: revokeKey
+      summary: Revoke a student API key
+      description: Authorizer caching can allow the old key for up to 300 seconds.
+      responses:
+        "200":
+          description: The key is revoked; repeated revocation is safe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevokeKeyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          $ref: "#/components/responses/AdminNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /admin/symbols:
+    post:
+      tags: [Admin ingestion]
+      operationId: registerSymbols
+      summary: Add up to 50 canonical symbols to the curated registry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterSymbolsRequest"
+      responses:
+        "201":
+          description: Symbols validated and registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterSymbolsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /admin/ingest/backfill:
+    post:
+      tags: [Admin ingestion]
+      operationId: startBackfill
+      summary: Start a resumable historical backfill
+      description: >-
+        Provide exactly one of symbols or universe. Progress counts use
+        symbol-year work units.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartBackfillRequest"
+      responses:
+        "202":
+          description: The job was accepted for asynchronous processing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartBackfillResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          $ref: "#/components/responses/AdminNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /admin/ingest/jobs/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      tags: [Admin ingestion]
+      operationId: getBackfillJob
+      summary: Get backfill progress
+      responses:
+        "200":
+          description: Job state and symbol-year progress.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackfillJobResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/GatewayUnauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          $ref: "#/components/responses/AdminNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: X-Api-Key
-      description: Instructor-issued Fauxnance API key.
+      description: >-
+        Instructor-issued Fauxnance API key. Admin operations require an
+        allowlisted admin key; a student key receives ADMIN_ONLY.
   parameters:
     Symbol:
       name: symbol
@@ -207,7 +496,48 @@ components:
           value: FX:EURUSD
         crypto:
           value: X:BTC-USD
+    CohortId:
+      name: cohortId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,80}$"
+    KeyId:
+      name: keyId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,80}$"
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,80}$"
+    PageLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    PageCursor:
+      name: cursor
+      in: query
+      description: Opaque cursor returned by the preceding page.
+      schema:
+        type: string
   responses:
+    BadRequest:
+      description: Request fields or query parameters are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     GatewayUnauthorized:
       description: >-
         The key is missing, malformed, unknown, or revoked. API Gateway can
@@ -216,6 +546,24 @@ components:
       description: >-
         The key or cohort is inactive or expired. API Gateway can generate this
         response, so the Fauxnance error envelope is not guaranteed.
+    AdminOnly:
+      description: The authenticated key is not an allowlisted admin key.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AdminNotFound:
+      description: The requested cohort, key, job, symbol, or universe was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: The request conflicts with existing or inactive state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     SymbolNotFound:
       description: The symbol is invalid or exact upstream discovery did not recognize it.
       content:
@@ -357,6 +705,11 @@ components:
             - VALIDATION_ERROR
             - RANGE_TOO_LARGE
             - ADMIN_ONLY
+            - CONFLICT
+            - COHORT_INACTIVE
+            - COHORT_NOT_FOUND
+            - KEY_NOT_FOUND
+            - JOB_NOT_FOUND
             - SYMBOL_NOT_FOUND
             - BACKFILL_IN_PROGRESS
             - UPSTREAM_UNAVAILABLE
@@ -374,6 +727,406 @@ components:
       properties:
         error:
           $ref: "#/components/schemas/Error"
+    CreateCohortRequest:
+      type: object
+      additionalProperties: false
+      required: [name, defaultDailyQuota, expiresAt]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        defaultDailyQuota:
+          type: integer
+          minimum: 1
+          maximum: 100000
+        expiresAt:
+          type: string
+          format: date
+    UpdateCohortRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        defaultDailyQuota:
+          type: integer
+          minimum: 1
+          maximum: 100000
+        expiresAt:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, inactive]
+    Cohort:
+      type: object
+      required:
+        - cohortId
+        - name
+        - defaultDailyQuota
+        - expiresAt
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        cohortId:
+          type: string
+        name:
+          type: string
+        defaultDailyQuota:
+          type: integer
+          minimum: 1
+        expiresAt:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, inactive]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CohortDetail:
+      allOf:
+        - $ref: "#/components/schemas/Cohort"
+        - type: object
+          required: [keyCounts, usedToday]
+          properties:
+            keyCounts:
+              type: object
+              required: [total, active, revoked]
+              properties:
+                total:
+                  type: integer
+                  minimum: 0
+                active:
+                  type: integer
+                  minimum: 0
+                revoked:
+                  type: integer
+                  minimum: 0
+            usedToday:
+              type: integer
+              minimum: 0
+    CohortResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Cohort"
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    CohortDetailResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/CohortDetail"
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    CohortListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [cohorts, cursor]
+          properties:
+            cohorts:
+              type: array
+              items:
+                $ref: "#/components/schemas/CohortDetail"
+            cursor:
+              type: [string, "null"]
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    IssueKeysRequest:
+      type: object
+      additionalProperties: false
+      required: [cohortId]
+      properties:
+        cohortId:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{1,80}$"
+        labels:
+          type: array
+          minItems: 1
+          maxItems: 25
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 120
+        count:
+          type: integer
+          minimum: 1
+          maximum: 25
+        dailyQuota:
+          type: integer
+          minimum: 1
+          maximum: 100000
+      oneOf:
+        - required: [labels]
+        - required: [count]
+    IssuedKey:
+      type: object
+      required: [keyId, label, key]
+      properties:
+        keyId:
+          type: string
+        label:
+          type: string
+        key:
+          type: string
+          description: Plaintext secret returned exactly once.
+          pattern: "^fnx_[a-z][a-z0-9-]*_[A-Za-z0-9]{32}$"
+    IssuedKeysResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [cohortId, keys]
+          properties:
+            cohortId:
+              type: string
+            keys:
+              type: array
+              minItems: 1
+              maxItems: 25
+              items:
+                $ref: "#/components/schemas/IssuedKey"
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    KeySummary:
+      type: object
+      required: [keyId, label, dailyQuota, status, createdAt, expiresAt, usedToday]
+      properties:
+        keyId:
+          type: string
+        label:
+          type: string
+        dailyQuota:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [active, revoked]
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date
+        revokedAt:
+          type: string
+          format: date-time
+        usedToday:
+          type: integer
+          minimum: 0
+    KeyListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [cohortId, keys, cursor]
+          properties:
+            cohortId:
+              type: string
+            keys:
+              type: array
+              items:
+                $ref: "#/components/schemas/KeySummary"
+            cursor:
+              type: [string, "null"]
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    RevokeKeyResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [keyId, status, revokedAt]
+          properties:
+            keyId:
+              type: string
+            status:
+              type: string
+              const: revoked
+            revokedAt:
+              type: string
+              format: date-time
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    RegisterSymbolInput:
+      type: object
+      additionalProperties: false
+      required: [symbol, name, type, exchange, currency]
+      properties:
+        symbol:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Uppercase canonical Fauxnance symbol.
+          examples: [AAPL, INFY.NS, "FX:EURUSD", "X:BTC-USD"]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          type: string
+          enum: [equity, etf, fx, crypto]
+        exchange:
+          type: string
+          minLength: 1
+          maxLength: 32
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        adapterHints:
+          type: object
+          maxProperties: 20
+          additionalProperties:
+            type: string
+            minLength: 1
+            maxLength: 200
+    RegisteredSymbol:
+      type: object
+      required: [symbol, name, type, exchange, currency, market]
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [equity, etf, fx, crypto]
+        exchange:
+          type: string
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        market:
+          type: string
+          enum: [US, IN, FX, CRYPTO]
+    RegisterSymbolsRequest:
+      type: object
+      additionalProperties: false
+      required: [symbols]
+      properties:
+        symbols:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/RegisterSymbolInput"
+    RegisterSymbolsResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [symbols]
+          properties:
+            symbols:
+              type: array
+              minItems: 1
+              maxItems: 50
+              items:
+                $ref: "#/components/schemas/RegisteredSymbol"
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    StartBackfillRequest:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      properties:
+        symbols:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 32
+        universe:
+          type: string
+          minLength: 1
+          maxLength: 80
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+      oneOf:
+        - required: [symbols]
+        - required: [universe]
+    StartBackfillResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [jobId, state]
+          properties:
+            jobId:
+              type: string
+            state:
+              type: string
+              const: preparing
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+    FailedBackfillUnit:
+      type: object
+      required: [symbol, year]
+      properties:
+        symbol:
+          type: string
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+        error:
+          type: string
+    BackfillJob:
+      type: object
+      required: [jobId, state, done, total, failed]
+      properties:
+        jobId:
+          type: string
+        state:
+          type: string
+          enum: [preparing, expanding, running, completed, failed]
+        done:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+        failed:
+          type: array
+          items:
+            $ref: "#/components/schemas/FailedBackfillUnit"
+        preparationError:
+          type: string
+    BackfillJobResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/BackfillJob"
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
     SymbolResponse:
       type: object
       required: [data, meta]

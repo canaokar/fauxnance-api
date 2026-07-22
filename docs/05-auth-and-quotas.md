@@ -99,6 +99,8 @@ fnx jobs status <jobId>
 ```
 
 The CSV output (`label,key`) is what gets mail-merged to students on day one.
+See the [operator CLI guide](operator-cli.md) for environment-only admin-key
+configuration, safe `0600` CSV output, and the full cohort workflow.
 
 ## Security posture
 

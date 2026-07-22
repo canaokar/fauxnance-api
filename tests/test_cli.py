@@ -11,7 +11,7 @@ import unittest
 from urllib.request import Request
 
 from cli.client import DEFAULT_BASE_URL, TransportResponse
-from cli.main import main
+from cli.main import build_parser, main
 
 
 API_KEY = "fnx_dev_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"
@@ -162,6 +162,18 @@ class ClientCommandTests(unittest.TestCase):
         self.assertEqual(
             status.full_url, f"{DEFAULT_BASE_URL}/admin/ingest/jobs/job%2Fa"
         )
+
+    def test_backfill_requires_both_date_bounds(self):
+        with self.assertRaises(SystemExit):
+            build_parser().parse_args(
+                [
+                    "backfill",
+                    "--universe",
+                    "us-phase2-v1",
+                    "--from",
+                    "2016-01-01",
+                ]
+            )
 
     def test_missing_key_fails_without_making_a_request(self):
         transport = RecordingTransport()

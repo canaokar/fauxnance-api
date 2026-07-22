@@ -46,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     backfill = groups.add_parser("backfill", help="Start a historical backfill")
     backfill.add_argument("--universe", required=True)
     backfill.add_argument("--from", dest="from_date", type=_iso_date, required=True)
-    backfill.add_argument("--to", dest="to_date", type=_iso_date)
+    backfill.add_argument("--to", dest="to_date", type=_iso_date, required=True)
 
     jobs = groups.add_parser("jobs", help="Inspect ingest jobs")
     job_commands = jobs.add_subparsers(dest="command", required=True)
@@ -111,7 +111,7 @@ def _dispatch(
         _print_json(client.revoke_key(args.key_id), stdout)
         return 0
     if args.group == "backfill":
-        if args.to_date is not None and args.from_date > args.to_date:
+        if args.from_date > args.to_date:
             raise ValueError("--from must not be after --to")
         _print_json(
             client.start_backfill(

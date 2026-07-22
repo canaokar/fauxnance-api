@@ -107,11 +107,9 @@ class FnxApiClient:
         universe: str,
         *,
         from_date: str,
-        to_date: str | None = None,
+        to_date: str,
     ) -> Any:
-        body = {"universe": universe, "from": from_date}
-        if to_date is not None:
-            body["to"] = to_date
+        body = {"universe": universe, "from": from_date, "to": to_date}
         return self._request("POST", "/admin/ingest/backfill", body)
 
     def job_status(self, job_id: str) -> Any:

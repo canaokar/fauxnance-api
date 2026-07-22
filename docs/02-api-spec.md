@@ -5,8 +5,9 @@ Base URL:
 Gateway URL; no custom domain is currently configured).
 All endpoints require the `X-Api-Key` header unless noted. All v1 responses are
 JSON, UTF-8. CSV candle export is deferred to v1.x. A machine-readable
-`docs/openapi.yaml` will be generated from this spec in Phase 1 and is the
-contract of record once it exists.
+[`docs/openapi.yaml`](openapi.yaml) is the contract of record, and interactive
+Swagger UI is available at
+`https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1/docs`.
 
 ## Symbol scheme
 
@@ -215,6 +216,8 @@ ingestion conditionally advances `latestEod`. It does not scan symbol metadata.
 |---|---|
 | `POST /v1/admin/cohorts` | Create cohort `{name, defaultDailyQuota, expiresAt}` |
 | `GET /v1/admin/cohorts` | List cohorts with aggregate usage |
+| `GET /v1/admin/cohorts/{cohortId}` | Get one cohort with key counts and aggregate usage |
+| `PATCH /v1/admin/cohorts/{cohortId}` | Update name, quota, expiry, or `active \| inactive` status |
 | `POST /v1/admin/keys` | Issue student keys: `{cohortId, count \| labels[], dailyQuota?}` → returns `{keyId, label, key}` entries; plaintext keys appear **once** |
 | `GET /v1/admin/keys?cohortId=` | List keys (`keyId`, label, usage, status — never hash or plaintext) |
 | `DELETE /v1/admin/keys/{keyId}` | Revoke immediately (authorizer cache ≤ 300 s lag) |
@@ -232,6 +235,7 @@ ingestion conditionally advances `latestEod`. It does not scan symbol metadata.
 | 403 | *(API Gateway standard body)* | Expired/inactive key or cohort rejected by the authorizer |
 | 403 | `ADMIN_ONLY` | Non-admin key on `/admin/*` |
 | 404 | `SYMBOL_NOT_FOUND` | Unknown symbol, registration failed |
+| 409 | `CONFLICT` | Admin mutation conflicts with current state |
 | 202 | `BACKFILL_IN_PROGRESS` | Data being fetched; retry later |
 | 429 | `RATE_LIMITED` | Daily quota exhausted (`Retry-After` header set) |
 | 503 | `UPSTREAM_UNAVAILABLE` | Exact symbol discovery could not reach its upstream; retry later |
@@ -243,3 +247,8 @@ ingestion conditionally advances `latestEod`. It does not scan symbol metadata.
   non-breaking and can ship anytime. Breaking changes require `/v2/`.
 - `/v1/sim/*` is **reserved** for the future paper-trading module — v1 handlers
   must 404 that prefix without matching other routes.
+
+See the [student quickstart](student-quickstart.md),
+[error-handling guide](error-handling.md), and [fair-use policy](fair-use.md) for
+client examples and operational expectations. Instructors should also read the
+[operator CLI guide](operator-cli.md).
