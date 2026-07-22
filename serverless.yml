@@ -476,6 +476,150 @@ resources:
         ComparisonOperator: GreaterThanOrEqualToThreshold
         TreatMissingData: notBreaching
 
+    OperationsDashboard:
+      Type: AWS::CloudWatch::Dashboard
+      Properties:
+        DashboardName: ${self:service}-${sls:stage}-operations
+        DashboardBody:
+          Fn::Join:
+            - ""
+            - - '{"widgets":[{"type":"metric","x":0,"y":0,"width":12,"height":6,"properties":{"title":"HTTP API traffic and errors","region":"${aws:region}","period":300,"view":"timeSeries","stacked":false,"metrics":[["AWS/ApiGateway","Count","ApiId","'
+              - Ref: HttpApi
+              - '","Stage","$default",{"stat":"Sum","label":"Count"}],[".","4xx",".",".",".",".",{"stat":"Sum","label":"4xx"}],[".","5xx",".",".",".",".",{"stat":"Sum","label":"5xx"}]]}},{"type":"metric","x":12,"y":0,"width":12,"height":6,"properties":{"title":"HTTP API p95 latency","region":"${aws:region}","period":300,"view":"timeSeries","metrics":[["AWS/ApiGateway","Latency","ApiId","'
+              - Ref: HttpApi
+              - '","Stage","$default",{"stat":"p95","label":"Latency p95"}],[".","IntegrationLatency",".",".",".",".",{"stat":"p95","label":"Integration latency p95"}]]}},{"type":"metric","x":0,"y":6,"width":24,"height":8,"properties":{"title":"Lambda invocations, errors, and throttles","region":"${aws:region}","period":300,"view":"timeSeries","metrics":[["AWS/Lambda","Invocations","FunctionName","'
+              - Ref: ApiLambdaFunction
+              - '",{"stat":"Sum","label":"api invocations"}],[".","Errors",".",".",{"stat":"Sum","label":"api errors"}],[".","Throttles",".",".",{"stat":"Sum","label":"api throttles"}],["AWS/Lambda","Invocations","FunctionName","'
+              - Ref: AdminLambdaFunction
+              - '",{"stat":"Sum","label":"admin invocations"}],[".","Errors",".",".",{"stat":"Sum","label":"admin errors"}],[".","Throttles",".",".",{"stat":"Sum","label":"admin throttles"}],["AWS/Lambda","Invocations","FunctionName","'
+              - Ref: AuthorizerLambdaFunction
+              - '",{"stat":"Sum","label":"authorizer invocations"}],[".","Errors",".",".",{"stat":"Sum","label":"authorizer errors"}],[".","Throttles",".",".",{"stat":"Sum","label":"authorizer throttles"}],["AWS/Lambda","Invocations","FunctionName","'
+              - Ref: DispatcherLambdaFunction
+              - '",{"stat":"Sum","label":"dispatcher invocations"}],[".","Errors",".",".",{"stat":"Sum","label":"dispatcher errors"}],[".","Throttles",".",".",{"stat":"Sum","label":"dispatcher throttles"}],["AWS/Lambda","Invocations","FunctionName","'
+              - Ref: BackfillCoordinatorLambdaFunction
+              - '",{"stat":"Sum","label":"backfillCoordinator invocations"}],[".","Errors",".",".",{"stat":"Sum","label":"backfillCoordinator errors"}],[".","Throttles",".",".",{"stat":"Sum","label":"backfillCoordinator throttles"}],["AWS/Lambda","Invocations","FunctionName","'
+              - Ref: IngestWorkerLambdaFunction
+              - '",{"stat":"Sum","label":"ingestWorker invocations"}],[".","Errors",".",".",{"stat":"Sum","label":"ingestWorker errors"}],[".","Throttles",".",".",{"stat":"Sum","label":"ingestWorker throttles"}]]}},{"type":"metric","x":0,"y":14,"width":24,"height":7,"properties":{"title":"Lambda p95 duration","region":"${aws:region}","period":300,"view":"timeSeries","metrics":[["AWS/Lambda","Duration","FunctionName","'
+              - Ref: ApiLambdaFunction
+              - '",{"stat":"p95","label":"api"}],["AWS/Lambda","Duration","FunctionName","'
+              - Ref: AdminLambdaFunction
+              - '",{"stat":"p95","label":"admin"}],["AWS/Lambda","Duration","FunctionName","'
+              - Ref: AuthorizerLambdaFunction
+              - '",{"stat":"p95","label":"authorizer"}],["AWS/Lambda","Duration","FunctionName","'
+              - Ref: DispatcherLambdaFunction
+              - '",{"stat":"p95","label":"dispatcher"}],["AWS/Lambda","Duration","FunctionName","'
+              - Ref: BackfillCoordinatorLambdaFunction
+              - '",{"stat":"p95","label":"backfillCoordinator"}],["AWS/Lambda","Duration","FunctionName","'
+              - Ref: IngestWorkerLambdaFunction
+              - '",{"stat":"p95","label":"ingestWorker"}]]}},{"type":"metric","x":0,"y":21,"width":12,"height":7,"properties":{"title":"Ingest queues","region":"${aws:region}","period":300,"view":"timeSeries","metrics":[["AWS/SQS","ApproximateNumberOfMessagesVisible","QueueName","'
+              - Fn::GetAtt:
+                  - IngestQueue
+                  - QueueName
+              - '",{"stat":"Maximum","label":"ingest visible"}],[".","ApproximateNumberOfMessagesNotVisible",".",".",{"stat":"Maximum","label":"ingest in-flight"}],[".","ApproximateAgeOfOldestMessage",".",".",{"stat":"Maximum","label":"ingest oldest age"}],["AWS/SQS","ApproximateNumberOfMessagesVisible","QueueName","'
+              - Fn::GetAtt:
+                  - IngestDeadLetterQueue
+                  - QueueName
+              - '",{"stat":"Maximum","label":"DLQ visible"}]]}},{"type":"metric","x":12,"y":21,"width":12,"height":7,"properties":{"title":"DynamoDB capacity and throttles","region":"${aws:region}","period":300,"view":"timeSeries","metrics":[["AWS/DynamoDB","ConsumedReadCapacityUnits","TableName","${self:custom.dataTableName}",{"stat":"Sum","label":"data read"}],[".","ConsumedWriteCapacityUnits",".",".",{"stat":"Sum","label":"data write"}],[".","ReadThrottleEvents",".",".",{"stat":"Sum","label":"data read throttles"}],[".","WriteThrottleEvents",".",".",{"stat":"Sum","label":"data write throttles"}],["AWS/DynamoDB","ConsumedReadCapacityUnits","TableName","${self:custom.controlTableName}",{"stat":"Sum","label":"control read"}],[".","ConsumedWriteCapacityUnits",".",".",{"stat":"Sum","label":"control write"}],[".","ReadThrottleEvents",".",".",{"stat":"Sum","label":"control read throttles"}],[".","WriteThrottleEvents",".",".",{"stat":"Sum","label":"control write throttles"}]]}}]}'
+
+    Api5xxAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-api-5xx
+        AlarmDescription: HTTP API returned one or more server errors in five minutes
+        Namespace: AWS/ApiGateway
+        MetricName: 5xx
+        Dimensions:
+          - Name: ApiId
+            Value:
+              Ref: HttpApi
+          - Name: Stage
+            Value: $default
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    AuthorizerErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-authorizer-errors
+        AlarmDescription: Authorizer Lambda failed instead of returning an authorization decision
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: AuthorizerLambdaFunction
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    DispatcherErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-dispatcher-errors
+        AlarmDescription: Scheduled market dispatcher failed
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: DispatcherLambdaFunction
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    BackfillCoordinatorErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-backfill-coordinator-errors
+        AlarmDescription: Administrative backfill coordinator failed
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: BackfillCoordinatorLambdaFunction
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        DatapointsToAlarm: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    IngestQueueAgeAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-ingest-queue-age
+        AlarmDescription: Oldest ingest message exceeded thirty minutes for ten minutes
+        Namespace: AWS/SQS
+        MetricName: ApproximateAgeOfOldestMessage
+        Dimensions:
+          - Name: QueueName
+            Value:
+              Fn::GetAtt:
+                - IngestQueue
+                - QueueName
+        Statistic: Maximum
+        Period: 300
+        EvaluationPeriods: 2
+        DatapointsToAlarm: 2
+        Threshold: 1800
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
   extensions:
     HttpApiStage:
       Properties:
