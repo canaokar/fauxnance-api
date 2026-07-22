@@ -178,6 +178,27 @@ class PublicApiTests(unittest.TestCase):
         )
         self.assertEqual(self.quota.calls, [])
 
+    def test_docs_page_is_public_html_and_points_at_the_spec(self):
+        response = self.invoke(event("/v1/docs", auth=False))
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(
+            response["headers"]["Content-Type"], "text/html; charset=utf-8"
+        )
+        self.assertIn("swagger-ui", response["body"])
+        self.assertIn("/v1/openapi.yaml", response["body"])
+        self.assertEqual(self.quota.calls, [])
+
+    def test_openapi_document_is_public_yaml_from_the_maintained_contract(self):
+        response = self.invoke(event("/v1/openapi.yaml", auth=False))
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(
+            response["headers"]["Content-Type"], "application/yaml; charset=utf-8"
+        )
+        self.assertIn("openapi: 3.1.0", response["body"])
+        self.assertEqual(self.quota.calls, [])
+
     def test_health_degrades_when_market_status_is_missing(self):
         self.data.market_status = None
         response = self.invoke(event("/v1/health", auth=False))

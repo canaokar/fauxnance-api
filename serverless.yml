@@ -90,6 +90,7 @@ functions:
         - src/adapters/**
         - src/synthetic/**
         - src/shared/**
+        - docs/openapi.yaml
     iamRoleStatementsName: ${self:service}-${sls:stage}-api-role
     iamRoleStatements:
       - Effect: Allow
@@ -125,6 +126,12 @@ functions:
       - httpApi:
           method: GET
           path: /v1/health
+      - httpApi:
+          method: GET
+          path: /v1/docs
+      - httpApi:
+          method: GET
+          path: /v1/openapi.yaml
       - httpApi:
           method: GET
           path: /v1/usage

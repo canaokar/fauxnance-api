@@ -9,6 +9,7 @@ import logging
 import os
 from typing import Any, Callable, Mapping
 
+from src.api.docs import DOCS_PATH, OPENAPI_PATH, docs_html, openapi_yaml
 from src.api.repository import IdentityRepository, MarketDataRepository
 from src.api.discovery import DiscoveryService, DiscoveryUnavailable, LazyBackfill
 from src.api.quotes import QuoteResolver, QuoteUnavailable, quote_data
@@ -72,6 +73,17 @@ class ApiService:
                 raise ApiError(404, "NOT_FOUND", "Route was not found.")
             if path == "/v1/health":
                 return _success(self._health(now), now=now)
+            if path == DOCS_PATH:
+                return _raw(
+                    200, docs_html(), "text/html; charset=utf-8", cache_seconds=3600
+                )
+            if path == OPENAPI_PATH:
+                return _raw(
+                    200,
+                    openapi_yaml(),
+                    "application/yaml; charset=utf-8",
+                    cache_seconds=3600,
+                )
 
             auth = _authorizer_context(event)
             usage = self._consume_quota(auth, now)
@@ -577,6 +589,19 @@ def _error(
         {"error": {"code": code, "message": message, "details": {}}},
         headers=headers,
     )
+
+
+def _raw(
+    status: int,
+    body: str,
+    content_type: str,
+    *,
+    cache_seconds: int | None = None,
+) -> dict[str, Any]:
+    headers = {"Content-Type": content_type}
+    if cache_seconds is not None:
+        headers["Cache-Control"] = f"public, max-age={cache_seconds}"
+    return {"statusCode": status, "headers": headers, "body": body}
 
 
 def _response(
