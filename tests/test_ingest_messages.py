@@ -44,11 +44,50 @@ class IngestMessageTests(unittest.TestCase):
         self.assertEqual(message.start, date(2020, 1, 1))
         self.assertEqual(message.end, date(2020, 12, 31))
 
+    def test_parses_v2_messages_for_each_non_us_market(self):
+        cases = (
+            ("IN", "INFY.NS"),
+            ("FX", "FX:EURUSD"),
+            ("CRYPTO", "X:BTC-USD"),
+        )
+        for market, symbol in cases:
+            with self.subTest(market=market):
+                eod = parse_message(
+                    json.dumps(
+                        {
+                            "v": 2,
+                            "kind": "eod_batch",
+                            "market": market,
+                            "symbol": symbol,
+                            "from": "2026-07-20",
+                            "to": "2026-07-21",
+                        }
+                    )
+                )
+                backfill = parse_message(
+                    json.dumps(
+                        {
+                            "v": 2,
+                            "kind": "backfill_year",
+                            "jobId": "job_multi",
+                            "market": market,
+                            "symbol": symbol,
+                            "year": 2025,
+                        }
+                    )
+                )
+                self.assertEqual(eod.market, market)
+                self.assertEqual(backfill.market, market)
+
     def test_rejects_noncanonical_or_nonexact_contracts(self):
         invalid = [
             "not json",
             "[]",
             '{"v":2,"kind":"eod_batch"}',
+            (
+                '{"v":2,"kind":"eod_batch","market":"US","symbol":"INFY.NS",'
+                '"from":"2026-07-01","to":"2026-07-21"}'
+            ),
             (
                 '{"v":1,"kind":"eod_batch","market":"US",'
                 '"symbols":["AAPL"],"from":"2026-07-01","to":"2026-07-21"}'

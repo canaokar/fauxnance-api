@@ -11,6 +11,14 @@ from typing import Any
 
 class Capability(StrEnum):
     EOD_US = "eod_us"
+    EOD_IN = "eod_in"
+    EOD_FX = "eod_fx"
+    EOD_CRYPTO = "eod_crypto"
+    QUOTE_US = "quote_us"
+    QUOTE_IN = "quote_in"
+    QUOTE_FX = "quote_fx"
+    QUOTE_CRYPTO = "quote_crypto"
+    DISCOVERY = "discovery"
 
 
 class CapabilityUnavailable(Exception):

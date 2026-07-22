@@ -135,10 +135,21 @@ class YahooAdapterTests(unittest.TestCase):
 
         self.assertEqual([row.date for row in result.candles], [date(2026, 7, 20)])
 
-    def test_vendor_symbol_mapping_and_capability_are_phase_one_scoped(self):
+    def test_vendor_symbol_mapping_and_multi_market_capabilities(self):
         adapter = YahooAdapter()
         self.assertEqual(adapter.vendor_symbol("brk.b"), "BRK-B")
-        self.assertEqual(adapter.capabilities(), {Capability.EOD_US})
+        self.assertEqual(adapter.vendor_symbol("infy.ns"), "INFY.NS")
+        self.assertEqual(adapter.vendor_symbol("FX:EURUSD"), "EURUSD=X")
+        self.assertEqual(adapter.vendor_symbol("X:BTC-USD"), "BTC-USD")
+        self.assertEqual(
+            adapter.capabilities(),
+            {
+                Capability.EOD_US,
+                Capability.EOD_IN,
+                Capability.EOD_FX,
+                Capability.EOD_CRYPTO,
+            },
+        )
         with self.assertRaises(CapabilityUnavailable):
             adapter.vendor_symbol("bad symbol")
         with self.assertRaises(CapabilityUnavailable):

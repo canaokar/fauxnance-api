@@ -43,7 +43,7 @@ class IngestWorker:
             self._repository.advance_symbol_coverage(
                 message.symbol, candles[0].date, candles[-1].date
             )
-            self._repository.advance_market_status("US", candles[-1].date)
+            self._repository.advance_market_status(message.market, candles[-1].date)
         if actions:
             self._repository.write_actions(message.symbol, actions)
 

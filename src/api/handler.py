@@ -7,16 +7,15 @@ from decimal import Decimal, InvalidOperation
 import json
 import logging
 import os
-import re
 from typing import Any, Callable, Mapping
 
 from src.api.repository import IdentityRepository, MarketDataRepository
 from src.shared.auth import AuthContext, parse_authorizer_context
 from src.shared.quota import QuotaExceeded, QuotaService, Usage
+from src.shared.symbols import canonical_symbol
 
 
 DISCLAIMER = "Educational data. Not for investment use."
-_US_SYMBOL = re.compile(r"^[A-Z][A-Z0-9.-]{0,14}$")
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -268,8 +267,9 @@ def _path_symbol(event: Mapping[str, Any], path: str, prefix: str) -> str:
     parameters = event.get("pathParameters")
     raw = parameters.get("symbol") if isinstance(parameters, Mapping) else None
     raw = raw or path.removeprefix(prefix)
-    symbol = str(raw).strip().upper()
-    if not _US_SYMBOL.fullmatch(symbol):
+    try:
+        symbol = canonical_symbol(str(raw))
+    except ValueError:
         raise ApiError(404, "SYMBOL_NOT_FOUND", "Symbol was not recognized.")
     return symbol
 

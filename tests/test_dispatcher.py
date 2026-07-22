@@ -67,6 +67,7 @@ class DispatcherTests(unittest.TestCase):
             for entry in call["Entries"]
         ]
         documents = [json.loads(body) for body in bodies]
+        self.assertTrue(all(document["v"] == 2 for document in documents))
         self.assertEqual(
             [document["symbol"] for document in documents],
             [f"S{i:02}" for i in range(12)],
@@ -91,6 +92,22 @@ class DispatcherTests(unittest.TestCase):
         )
         with self.assertRaises(DispatchError):
             failing.dispatch()
+
+    def test_handler_dispatches_the_requested_market(self):
+        table = PagedTable(
+            [[
+                {"SK": "AAPL", "active": True, "market": "US"},
+                {"SK": "INFY.NS", "active": True, "market": "IN"},
+            ]]
+        )
+        sqs = FakeSqs()
+        dispatcher = EodDispatcher(table, sqs, "queue")
+
+        response = handler({"market": "IN"}, object(), dispatcher=dispatcher)
+
+        self.assertEqual(response, {"enqueued": 1})
+        body = json.loads(sqs.calls[0]["Entries"][0]["MessageBody"])
+        self.assertEqual((body["market"], body["symbol"]), ("IN", "INFY.NS"))
 
 
 if __name__ == "__main__":

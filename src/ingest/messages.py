@@ -8,8 +8,9 @@ import json
 import re
 from typing import Any
 
+from src.shared.symbols import Market, SUPPORTED_MARKETS, parse_symbol
 
-_SYMBOL = re.compile(r"^[A-Z][A-Z0-9.-]{0,14}$")
+
 _JOB_ID = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 
 
@@ -30,6 +31,7 @@ class BackfillYearMessage:
     job_id: str
     symbol: str
     year: int
+    market: str = "US"
 
     @property
     def start(self) -> date:
@@ -50,34 +52,43 @@ def parse_message(body: str) -> IngestMessage:
         raise InvalidIngestMessage("message body must be a JSON object") from exc
     if not isinstance(document, dict):
         raise InvalidIngestMessage("message body must be a JSON object")
-    if type(document.get("v")) is not int or document["v"] != 1:
-        raise InvalidIngestMessage("message version must be 1")
+    if type(document.get("v")) is not int or document["v"] not in {1, 2}:
+        raise InvalidIngestMessage("message version must be 1 or 2")
+    version = document["v"]
 
     kind = document.get("kind")
     if kind == "eod_batch":
         _require_exact_fields(
             document, {"v", "kind", "market", "symbol", "from", "to"}
         )
-        market = document["market"]
-        if market != "US":
-            raise InvalidIngestMessage("eod_batch market must be US")
-        symbol = _parse_symbol(document["symbol"])
+        market = _parse_market(document["market"])
+        if version == 1 and market != Market.US:
+            raise InvalidIngestMessage("version 1 eod_batch market must be US")
+        symbol = _parse_symbol(document["symbol"], market)
         start = _parse_date(document["from"], "from")
         end = _parse_date(document["to"], "to")
         if start > end:
             raise InvalidIngestMessage("from must not be after to")
-        return EodBatchMessage(symbol=symbol, start=start, end=end)
+        return EodBatchMessage(
+            symbol=symbol, start=start, end=end, market=market.value
+        )
 
     if kind == "backfill_year":
-        _require_exact_fields(document, {"v", "kind", "jobId", "symbol", "year"})
+        expected = {"v", "kind", "jobId", "symbol", "year"}
+        if version == 2:
+            expected.add("market")
+        _require_exact_fields(document, expected)
         job_id = document["jobId"]
         if not isinstance(job_id, str) or not _JOB_ID.fullmatch(job_id):
             raise InvalidIngestMessage("jobId is invalid")
-        symbol = _parse_symbol(document["symbol"])
+        market = Market.US if version == 1 else _parse_market(document["market"])
+        symbol = _parse_symbol(document["symbol"], market)
         year = document["year"]
         if type(year) is not int or not 1900 <= year <= 2100:
             raise InvalidIngestMessage("year must be an integer from 1900 to 2100")
-        return BackfillYearMessage(job_id=job_id, symbol=symbol, year=year)
+        return BackfillYearMessage(
+            job_id=job_id, symbol=symbol, year=year, market=market.value
+        )
 
     raise InvalidIngestMessage("message kind is unsupported")
 
@@ -87,10 +98,22 @@ def _require_exact_fields(document: dict[str, Any], expected: set[str]) -> None:
         raise InvalidIngestMessage("message fields do not match its kind")
 
 
-def _parse_symbol(value: object) -> str:
-    if not isinstance(value, str) or not _SYMBOL.fullmatch(value):
-        raise InvalidIngestMessage("symbol must be canonical US ticker")
-    return value
+def _parse_symbol(value: object, market: Market) -> str:
+    if not isinstance(value, str):
+        raise InvalidIngestMessage("symbol must be canonical")
+    try:
+        info = parse_symbol(value)
+    except ValueError as exc:
+        raise InvalidIngestMessage("symbol must be canonical") from exc
+    if value != info.symbol or info.market != market:
+        raise InvalidIngestMessage("symbol does not match its market")
+    return info.symbol
+
+
+def _parse_market(value: object) -> Market:
+    if not isinstance(value, str) or value not in SUPPORTED_MARKETS:
+        raise InvalidIngestMessage("market is unsupported")
+    return Market(value)
 
 
 def _parse_date(value: object, field: str) -> date:

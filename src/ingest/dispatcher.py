@@ -26,22 +26,23 @@ class EodDispatcher:
         self._queue_url = queue_url
         self._today = today or (lambda: datetime.now(UTC).date())
 
-    def dispatch(self) -> int:
+    def dispatch(self, market: str = "US") -> int:
+        market = _market(market)
         end = self._today()
         start = end - timedelta(days=6)
         bodies = [
             json.dumps(
                 {
-                    "v": 1,
+                    "v": 2,
                     "kind": "eod_batch",
-                    "market": "US",
+                    "market": market,
                     "symbol": symbol,
                     "from": start.isoformat(),
                     "to": end.isoformat(),
                 },
                 separators=(",", ":"),
             )
-            for symbol in self._active_us_symbols()
+            for symbol in self._active_symbols(market)
         ]
         for offset in range(0, len(bodies), 10):
             entries = [
@@ -58,7 +59,7 @@ class EodDispatcher:
                 raise DispatchError(f"SQS rejected ingest messages: {identifiers}")
         return len(bodies)
 
-    def _active_us_symbols(self) -> list[str]:
+    def _active_symbols(self, market: str) -> list[str]:
         symbols: set[str] = set()
         cursor: Mapping[str, Any] | None = None
         while True:
@@ -70,7 +71,7 @@ class EodDispatcher:
                 request["ExclusiveStartKey"] = cursor
             response = self._data.query(**request)
             for item in response.get("Items", []):
-                if item.get("active") is True and item.get("market") == "US":
+                if item.get("active") is True and item.get("market") == market:
                     symbol = item.get("symbol") or item.get("SK")
                     if isinstance(symbol, str) and symbol:
                         symbols.add(symbol)
@@ -83,13 +84,13 @@ _dispatcher: EodDispatcher | None = None
 
 
 def handler(
-    _event: Mapping[str, Any],
+    event: Mapping[str, Any],
     _context: object,
     *,
     dispatcher: EodDispatcher | None = None,
 ) -> dict[str, int]:
     active_dispatcher = dispatcher or _default_dispatcher()
-    return {"enqueued": active_dispatcher.dispatch()}
+    return {"enqueued": active_dispatcher.dispatch(str(event.get("market", "US")))}
 
 
 lambda_handler = handler
@@ -107,3 +108,12 @@ def _default_dispatcher() -> EodDispatcher:
             os.environ["INGEST_QUEUE_URL"],
         )
     return _dispatcher
+
+
+def _market(value: str) -> str:
+    from src.shared.symbols import SUPPORTED_MARKETS
+
+    canonical = value.strip().upper()
+    if canonical not in SUPPORTED_MARKETS:
+        raise ValueError("market is unsupported")
+    return canonical

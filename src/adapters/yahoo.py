@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 import json
-import re
 from typing import Callable
 from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
@@ -19,6 +18,7 @@ from src.shared.market_data import (
     CorporateAction,
     EodResult,
 )
+from src.shared.symbols import parse_symbol
 
 
 class YahooError(Exception):
@@ -26,7 +26,6 @@ class YahooError(Exception):
 
 
 Fetch = Callable[[str, float], bytes]
-_US_SYMBOL = re.compile(r"^[A-Z][A-Z0-9.-]{0,14}$")
 
 
 class YahooAdapter:
@@ -38,7 +37,12 @@ class YahooAdapter:
         self._timeout = timeout
 
     def capabilities(self) -> set[Capability]:
-        return {Capability.EOD_US}
+        return {
+            Capability.EOD_US,
+            Capability.EOD_IN,
+            Capability.EOD_FX,
+            Capability.EOD_CRYPTO,
+        }
 
     def get_eod(self, symbol: str, start: date, end: date) -> EodResult:
         if start > end:
@@ -70,12 +74,10 @@ class YahooAdapter:
 
     @staticmethod
     def vendor_symbol(symbol: str) -> str:
-        canonical = symbol.strip().upper()
-        if not _US_SYMBOL.fullmatch(canonical):
-            raise CapabilityUnavailable(
-                "Yahoo Phase 1 adapter only supports US symbols"
-            )
-        return canonical.replace(".", "-")
+        try:
+            return parse_symbol(symbol).yahoo_symbol
+        except ValueError as exc:
+            raise CapabilityUnavailable("Yahoo does not support this symbol") from exc
 
 
 def _epoch(value: date) -> int:

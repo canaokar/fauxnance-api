@@ -142,8 +142,10 @@ class BackfillJobsTests(unittest.TestCase):
         self.assertEqual([item.symbol for item in messages], ["AAPL", "NVDA"])
         self.assertEqual(
             set(json.loads(bodies[0])),
-            {"v", "kind", "jobId", "symbol", "year"},
+            {"v", "kind", "jobId", "market", "symbol", "year"},
         )
+        self.assertTrue(all(json.loads(body)["v"] == 2 for body in bodies))
+        self.assertTrue(all(item.market == "US" for item in messages))
 
     def test_recreating_a_partial_job_adds_only_missing_work(self):
         control = ControlTable()

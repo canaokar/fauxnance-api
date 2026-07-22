@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from src.ingest.repository import DynamoDBIngestRepository
 from src.ingest.universe import Universe
+from src.shared.symbols import parse_symbol
 
 
 _JOB_ID = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
@@ -93,6 +94,7 @@ class BackfillJobs:
                         "SK": f"WORK#{symbol}#YEAR#{year}",
                         "symbol": symbol,
                         "year": year,
+                        "market": universe.market,
                         "state": "pending",
                         "createdAt": timestamp,
                     }
@@ -118,7 +120,7 @@ class BackfillJobs:
         if not self._control.get_item(Key=job_key, ConsistentRead=True).get("Item"):
             raise LookupError(f"backfill job {job_id!r} was not found")
 
-        pending: set[tuple[str, int]] = set()
+        pending: set[tuple[str, int, str]] = set()
         cursor: Mapping[str, Any] | None = None
         while True:
             request: dict[str, Any] = {
@@ -146,7 +148,15 @@ class BackfillJobs:
                 ):
                     raise ValueError("backfill work item is invalid")
                 year = int(raw_year)
-                pending.add((symbol, year))
+                raw_market = item.get("market")
+                if raw_market is None:
+                    try:
+                        raw_market = parse_symbol(symbol).market.value
+                    except ValueError as exc:
+                        raise ValueError("backfill work market is invalid") from exc
+                if not isinstance(raw_market, str):
+                    raise ValueError("backfill work market is invalid")
+                pending.add((symbol, year, raw_market))
             cursor = response.get("LastEvaluatedKey")
             if not cursor:
                 break
@@ -154,15 +164,16 @@ class BackfillJobs:
         messages = [
             json.dumps(
                 {
-                    "v": 1,
+                    "v": 2,
                     "kind": "backfill_year",
                     "jobId": job_id,
+                    "market": market,
                     "symbol": symbol,
                     "year": year,
                 },
                 separators=(",", ":"),
             )
-            for symbol, year in sorted(pending)
+            for symbol, year, market in sorted(pending)
         ]
         for offset in range(0, len(messages), 10):
             entries = [

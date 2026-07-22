@@ -85,7 +85,7 @@ class DynamoDBIngestRepository:
 
     def write_symbol(
         self,
-        metadata: Mapping[str, str],
+        metadata: Mapping[str, Any],
         *,
         market: str,
         first_date: date,
@@ -94,15 +94,7 @@ class DynamoDBIngestRepository:
         """Seed a registry item without allowing reruns to regress coverage."""
 
         symbol = metadata["symbol"]
-        common = {
-            "symbol": symbol,
-            "name": metadata["name"],
-            "type": metadata["type"],
-            "exchange": metadata["exchange"],
-            "currency": metadata["currency"],
-            "market": market,
-            "active": True,
-        }
+        common = _symbol_metadata(metadata, market)
         try:
             self._data.put_item(
                 Item={
@@ -124,7 +116,7 @@ class DynamoDBIngestRepository:
 
         self._data.put_item(Item={"PK": "SYMBOLS", "SK": symbol, **common})
 
-    def seed_symbol(self, metadata: Mapping[str, str], *, market: str) -> None:
+    def seed_symbol(self, metadata: Mapping[str, Any], *, market: str) -> None:
         """Register a symbol before its first candle without inventing coverage."""
 
         common = _symbol_metadata(metadata, market)
@@ -380,6 +372,7 @@ class DynamoDBIngestRepository:
             UpdateExpression=(
                 "SET #name = :name, #type = :type, exchange = :exchange, "
                 "currency = :currency, market = :market, active = :active, "
+                "adapterHints = :adapterHints, "
                 "#coverage = if_not_exists(#coverage, :emptyCoverage)"
             ),
             ExpressionAttributeNames={
@@ -394,6 +387,7 @@ class DynamoDBIngestRepository:
                 ":currency": common["currency"],
                 ":market": common["market"],
                 ":active": True,
+                ":adapterHints": common.get("adapterHints", {}),
                 ":emptyCoverage": {},
             },
         )
@@ -424,9 +418,9 @@ def _action_item(action: CorporateAction) -> dict[str, Any]:
 
 
 def _symbol_metadata(
-    metadata: Mapping[str, str], market: str
+    metadata: Mapping[str, Any], market: str
 ) -> dict[str, Any]:
-    return {
+    item = {
         "symbol": metadata["symbol"],
         "name": metadata["name"],
         "type": metadata["type"],
@@ -435,6 +429,9 @@ def _symbol_metadata(
         "market": market,
         "active": True,
     }
+    if metadata.get("adapterHints"):
+        item["adapterHints"] = dict(metadata["adapterHints"])
+    return item
 
 
 def _is_conditional_failure(exc: Exception) -> bool:
