@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any, Mapping
+
+from src.shared.market_data import Quote
 
 
 class MarketDataRepository:
@@ -49,6 +51,39 @@ class MarketDataRepository:
         item = response.get("Item")
         return list(item.get("actions", [])) if item else []
 
+    def get_quote(self, symbol: str) -> Mapping[str, Any] | None:
+        response = self._table.get_item(Key={"PK": f"SYM#{symbol}", "SK": "QUOTE"})
+        return response.get("Item")
+
+    def put_quote(
+        self,
+        symbol: str,
+        quote: Quote,
+        *,
+        fetched_at: datetime,
+        expires_at: datetime,
+    ) -> None:
+        fetched_at = _as_utc(fetched_at)
+        expires_at = _as_utc(expires_at)
+        self._table.put_item(
+            Item={
+                "PK": f"SYM#{symbol}",
+                "SK": "QUOTE",
+                "quote": {
+                    "price": quote.price,
+                    "currency": quote.currency,
+                    "change": quote.change,
+                    "changePercent": quote.change_percent,
+                    "previousClose": quote.previous_close,
+                    "asOf": _timestamp(quote.as_of),
+                    "marketState": quote.market_state,
+                },
+                "src": quote.source,
+                "fetchedAt": _timestamp(fetched_at),
+                "expiresAt": int(expires_at.timestamp()),
+            }
+        )
+
 
 class IdentityRepository:
     def __init__(self, table: Any) -> None:
@@ -86,3 +121,13 @@ class IdentityRepository:
             "keyLabel": key.get("label"),
             "cohort": cohort_name or cohort_id,
         }
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        raise ValueError("datetime must be timezone-aware")
+    return value.astimezone(UTC)
+
+
+def _timestamp(value: datetime) -> str:
+    return _as_utc(value).isoformat().replace("+00:00", "Z")

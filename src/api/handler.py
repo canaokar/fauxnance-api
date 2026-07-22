@@ -10,6 +10,7 @@ import os
 from typing import Any, Callable, Mapping
 
 from src.api.repository import IdentityRepository, MarketDataRepository
+from src.api.quotes import QuoteResolver, QuoteUnavailable, quote_data
 from src.shared.auth import AuthContext, parse_authorizer_context
 from src.shared.quota import QuotaExceeded, QuotaService, Usage
 from src.shared.symbols import canonical_symbol
@@ -42,12 +43,14 @@ class ApiService:
         identity_repository: IdentityRepository,
         quota_service: QuotaService,
         *,
+        quote_resolver: QuoteResolver | None = None,
         health_markets: tuple[str, ...] = ("US",),
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._data = data_repository
         self._identities = identity_repository
         self._quota = quota_service
+        self._quotes_service = quote_resolver
         self._health_markets = health_markets
         self._clock = clock or (lambda: datetime.now(UTC))
 
@@ -71,6 +74,19 @@ class ApiService:
 
             if path == "/v1/usage":
                 return _success(self._usage(auth, usage), now=now)
+            if path == "/v1/quotes":
+                return _success(self._quotes(_query(event), now), now=now)
+            if path.startswith("/v1/quotes/"):
+                symbol = _path_symbol(event, path, "/v1/quotes/")
+                resolved = self._quote(symbol, now)
+                return _success(
+                    quote_data(symbol, resolved.quote),
+                    now=now,
+                    symbol=symbol,
+                    source=resolved.source,
+                    stale=resolved.stale,
+                    as_of=_timestamp(resolved.quote.as_of),
+                )
             if path.startswith("/v1/symbols/"):
                 symbol = _path_symbol(event, path, "/v1/symbols/")
                 data = self._symbol(symbol)
@@ -150,6 +166,56 @@ class ApiService:
             "active": bool(item.get("active", True)),
             "coverage": coverage,
         }
+
+    def _quote(self, symbol: str, now: datetime):
+        item = self._data.get_symbol(symbol)
+        if not item or item.get("active") is False:
+            raise ApiError(404, "SYMBOL_NOT_FOUND", "Symbol was not recognized.")
+        if self._quotes_service is None:
+            raise ApiError(500, "INTERNAL_ERROR", "Quote service is unavailable.")
+        try:
+            return self._quotes_service.resolve(symbol, item, now=now)
+        except QuoteUnavailable as exc:
+            raise ApiError(
+                202,
+                "BACKFILL_IN_PROGRESS",
+                "Quote data is being prepared; retry later.",
+                headers={"Retry-After": "60"},
+            ) from exc
+
+    def _quotes(self, query: Mapping[str, str], now: datetime) -> dict[str, Any]:
+        raw = query.get("symbols", "")
+        values = [value.strip() for value in raw.split(",") if value.strip()]
+        if not values:
+            raise ApiError(400, "VALIDATION_ERROR", "symbols is required.")
+        if len(values) > 25:
+            raise ApiError(400, "VALIDATION_ERROR", "symbols supports at most 25 items.")
+
+        items: list[dict[str, Any]] = []
+        for raw_symbol in values:
+            try:
+                symbol = canonical_symbol(raw_symbol)
+                resolved = self._quote(symbol, now)
+                items.append(
+                    {
+                        "symbol": symbol,
+                        "source": resolved.source,
+                        "stale": resolved.stale,
+                        "quote": quote_data(symbol, resolved.quote),
+                    }
+                )
+            except (ApiError, ValueError) as exc:
+                if isinstance(exc, ApiError):
+                    code, message = exc.code, exc.message
+                else:
+                    code, message = "SYMBOL_NOT_FOUND", "Symbol was not recognized."
+                items.append(
+                    {
+                        "symbol": raw_symbol.strip().upper(),
+                        "error": {"code": code, "message": message, "details": {}},
+                    }
+                )
+        return {"quotes": items}
 
     def _candles(
         self, symbol: str, query: Mapping[str, str], today: date
@@ -239,6 +305,10 @@ def _default_service() -> ApiService:
     if _service is None:
         import boto3
 
+        from src.adapters.finnhub import FinnhubAdapter
+        from src.adapters.yahoo import YahooAdapter
+        from src.shared.source_guard import DynamoDbSourceGuard
+
         dynamodb = boto3.resource("dynamodb")
         data_table = dynamodb.Table(os.environ["DATA_TABLE"])
         control_table = dynamodb.Table(os.environ["CONTROL_TABLE"])
@@ -247,10 +317,33 @@ def _default_service() -> ApiService:
             for market in os.environ.get("HEALTH_MARKETS", "US").split(",")
             if market.strip()
         )
+        data_repository = MarketDataRepository(data_table)
+        yahoo = YahooAdapter(timeout=3.0)
+        yahoo_guard = DynamoDbSourceGuard(control_table, "yahoo")
+        finnhub = None
+        finnhub_guard = None
+        finnhub_parameter = os.environ.get("FINNHUB_API_KEY_PARAMETER", "").strip()
+        if finnhub_parameter:
+            api_key = _read_optional_parameter(
+                boto3.client("ssm"), finnhub_parameter
+            )
+            if api_key is not None:
+                finnhub = FinnhubAdapter(api_key)
+                finnhub_guard = DynamoDbSourceGuard(
+                    control_table, "finnhub", minute_limit=55
+                )
+        quote_resolver = QuoteResolver(
+            data_repository,
+            yahoo,
+            yahoo_guard,
+            finnhub=finnhub,
+            finnhub_guard=finnhub_guard,
+        )
         _service = ApiService(
-            MarketDataRepository(data_table),
+            data_repository,
             IdentityRepository(control_table),
             QuotaService(control_table),
+            quote_resolver=quote_resolver,
             health_markets=markets,
         )
     return _service
@@ -340,6 +433,7 @@ def _success(
     now: datetime,
     symbol: str | None = None,
     source: str | None = None,
+    stale: bool | None = None,
     as_of: str | None = None,
 ) -> dict[str, Any]:
     meta: dict[str, Any] = {
@@ -350,6 +444,8 @@ def _success(
         meta["symbol"] = symbol
     if source is not None:
         meta["source"] = source
+    if stale is not None:
+        meta["stale"] = stale
     return _response(200, {"data": data, "meta": meta})
 
 
@@ -387,3 +483,17 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         raise ValueError("datetime must be timezone-aware")
     return value.astimezone(UTC)
+
+
+def _read_optional_parameter(ssm: Any, name: str) -> str | None:
+    try:
+        response = ssm.get_parameter(Name=name, WithDecryption=True)
+    except Exception as exc:
+        data = getattr(exc, "response", {})
+        if data.get("Error", {}).get("Code") == "ParameterNotFound":
+            return None
+        raise
+    value = str(response.get("Parameter", {}).get("Value", "")).strip()
+    if not value:
+        raise ValueError(f"SSM parameter {name!r} is empty")
+    return value

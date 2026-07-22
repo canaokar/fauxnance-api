@@ -9,6 +9,7 @@ custom:
   adminKeyIdsParameter: /fauxnance/${sls:stage}/admin/key_ids
   alphaVantageApiKeyParameter: /fauxnance/${sls:stage}/upstreams/alpha_vantage/api_key
   coinGeckoApiKeyParameter: /fauxnance/${sls:stage}/upstreams/coingecko/api_key
+  finnhubApiKeyParameter: /fauxnance/${sls:stage}/upstreams/finnhub/api_key
   pythonRequirements:
     dockerizePip: non-linux
     slim: true
@@ -78,10 +79,12 @@ functions:
       CONTROL_TABLE: ${self:custom.controlTableName}
       DEFAULT_DAILY_QUOTA: "2000"
       HEALTH_MARKETS: US,IN,FX,CRYPTO
+      FINNHUB_API_KEY_PARAMETER: ${self:custom.finnhubApiKeyParameter}
     package:
       patterns:
         - src/__init__.py
         - src/api/**
+        - src/adapters/**
         - src/shared/**
     iamRoleStatementsName: ${self:service}-${sls:stage}-api-role
     iamRoleStatements:
@@ -90,6 +93,7 @@ functions:
           - dynamodb:GetItem
           - dynamodb:BatchGetItem
           - dynamodb:Query
+          - dynamodb:PutItem
         Resource:
           - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.dataTableName}
       - Effect: Allow
@@ -98,6 +102,11 @@ functions:
           - dynamodb:UpdateItem
         Resource:
           - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+      - Effect: Allow
+        Action:
+          - ssm:GetParameter
+        Resource:
+          - arn:${aws:partition}:ssm:${aws:region}:${self:custom.awsAccountId}:parameter/fauxnance/${sls:stage}/upstreams/finnhub/api_key
     events:
       - httpApi:
           method: GET
@@ -115,6 +124,16 @@ functions:
       - httpApi:
           method: GET
           path: /v1/candles/{symbol}
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/quotes
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/quotes/{symbol}
           authorizer:
             name: apiKeyAuthorizer
 

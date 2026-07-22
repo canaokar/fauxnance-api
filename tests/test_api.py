@@ -4,7 +4,9 @@ import json
 import unittest
 
 from src.api.handler import ApiService, lambda_handler
+from src.api.quotes import QuoteUnavailable, ResolvedQuote
 from src.api.repository import IdentityRepository, MarketDataRepository
+from src.shared.market_data import Quote
 from src.shared.quota import QuotaExceeded, Usage
 
 
@@ -60,6 +62,32 @@ class FakeQuotaService:
         return Usage(27, daily_quota, datetime(2026, 7, 22, tzinfo=UTC))
 
 
+class FakeQuoteResolver:
+    def __init__(self):
+        self.outcomes = {}
+        self.calls = []
+
+    def resolve(self, symbol, metadata, *, now):
+        self.calls.append((symbol, metadata, now))
+        outcome = self.outcomes.get(symbol)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome or ResolvedQuote(
+            Quote(
+                price=Decimal("232.71"),
+                currency=metadata.get("currency"),
+                change=Decimal("0.21"),
+                change_percent=Decimal("0.09"),
+                previous_close=Decimal("232.5"),
+                as_of=datetime(2026, 7, 21, 15, 42, 10, tzinfo=UTC),
+                market_state="open",
+                source="finnhub",
+            ),
+            source="upstream:finnhub",
+            stale=False,
+        )
+
+
 def event(path, *, query=None, symbol=None, auth=True):
     request = {
         "rawPath": path,
@@ -89,10 +117,12 @@ class PublicApiTests(unittest.TestCase):
         self.data = FakeDataRepository()
         self.identity = FakeIdentityRepository()
         self.quota = FakeQuotaService()
+        self.quotes = FakeQuoteResolver()
         self.service = ApiService(
             self.data,
             self.identity,
             self.quota,
+            quote_resolver=self.quotes,
             health_markets=("US",),
             clock=lambda: NOW,
         )
@@ -215,6 +245,49 @@ class PublicApiTests(unittest.TestCase):
             self.data.calls,
         )
 
+    def test_single_quote_returns_source_staleness_and_percentage_points(self):
+        response = self.invoke(event("/v1/quotes/AAPL", symbol="AAPL"))
+
+        body = decoded(response)
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"]["price"], 232.71)
+        self.assertEqual(body["data"]["changePercent"], 0.09)
+        self.assertEqual(body["meta"]["source"], "upstream:finnhub")
+        self.assertEqual(body["meta"]["stale"], False)
+        self.assertEqual(body["meta"]["asOf"], "2026-07-21T15:42:10Z")
+
+    def test_quote_without_any_usable_source_returns_retryable_202(self):
+        self.quotes.outcomes["AAPL"] = QuoteUnavailable("all sources down")
+        response = self.invoke(event("/v1/quotes/AAPL", symbol="AAPL"))
+
+        self.assertEqual(response["statusCode"], 202)
+        self.assertEqual(response["headers"]["Retry-After"], "60")
+        self.assertEqual(decoded(response)["error"]["code"], "BACKFILL_IN_PROGRESS")
+
+    def test_batch_quotes_mix_success_and_errors_for_one_quota_unit(self):
+        original = self.data.get_symbol
+        self.data.get_symbol = lambda symbol: None if symbol == "NOPE" else original(symbol)
+        response = self.invoke(
+            event(
+                "/v1/quotes",
+                query={"symbols": "aapl,NOPE,bad symbol"},
+            )
+        )
+
+        body = decoded(response)
+        self.assertEqual(response["statusCode"], 200)
+        self.assertIn("quote", body["data"]["quotes"][0])
+        self.assertEqual(body["data"]["quotes"][1]["error"]["code"], "SYMBOL_NOT_FOUND")
+        self.assertEqual(body["data"]["quotes"][2]["error"]["code"], "SYMBOL_NOT_FOUND")
+        self.assertEqual(len(self.quota.calls), 1)
+
+    def test_batch_quote_request_validates_presence_and_limit(self):
+        for query in ({}, {"symbols": ",".join(["AAPL"] * 26)}):
+            with self.subTest(query=query):
+                response = self.invoke(event("/v1/quotes", query=query))
+                self.assertEqual(response["statusCode"], 400)
+                self.assertEqual(decoded(response)["error"]["code"], "VALIDATION_ERROR")
+
     def test_invalid_interval_date_and_large_range_are_rejected(self):
         cases = [
             ({"interval": "1wk"}, "VALIDATION_ERROR"),
@@ -263,6 +336,40 @@ class MarketDataRepositoryTests(unittest.TestCase):
             {":pk": "SYM#AAPL", ":start": "EOD#2026-06", ":end": "EOD#2026-07"},
         )
         self.assertEqual(table.calls[1]["ExclusiveStartKey"], {"x": 1})
+
+    def test_quote_cache_write_uses_documented_item_and_cleanup_ttl(self):
+        class Table:
+            def __init__(self):
+                self.item = None
+
+            def put_item(self, *, Item):
+                self.item = Item
+
+        table = Table()
+        value = Quote(
+            price=Decimal("232.71"),
+            currency="USD",
+            change=Decimal("0.21"),
+            change_percent=Decimal("0.09"),
+            previous_close=Decimal("232.5"),
+            as_of=datetime(2026, 7, 21, 15, 42, 10, tzinfo=UTC),
+            market_state="open",
+            source="finnhub",
+        )
+        MarketDataRepository(table).put_quote(
+            "AAPL",
+            value,
+            fetched_at=NOW,
+            expires_at=datetime(2026, 7, 28, 12, tzinfo=UTC),
+        )
+
+        self.assertEqual((table.item["PK"], table.item["SK"]), ("SYM#AAPL", "QUOTE"))
+        self.assertEqual(table.item["quote"]["price"], Decimal("232.71"))
+        self.assertEqual(table.item["fetchedAt"], "2026-07-21T12:00:00Z")
+        self.assertEqual(
+            table.item["expiresAt"],
+            int(datetime(2026, 7, 28, 12, tzinfo=UTC).timestamp()),
+        )
 
 
 class IdentityRepositoryTests(unittest.TestCase):
