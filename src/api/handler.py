@@ -387,7 +387,9 @@ def _default_service() -> ApiService:
     if _service is None:
         import boto3
 
+        from src.adapters.coingecko import CoinGeckoAdapter
         from src.adapters.finnhub import FinnhubAdapter
+        from src.adapters.frankfurter import FrankfurterAdapter
         from src.adapters.yahoo import YahooAdapter
         from src.shared.source_guard import DynamoDbSourceGuard
 
@@ -414,12 +416,32 @@ def _default_service() -> ApiService:
                 finnhub_guard = DynamoDbSourceGuard(
                     control_table, "finnhub", minute_limit=55
                 )
+        frankfurter = FrankfurterAdapter(timeout=3.0)
+        frankfurter_guard = DynamoDbSourceGuard(control_table, "frankfurter_quote")
+        coingecko = None
+        coingecko_guard = None
+        coingecko_parameter = os.environ.get(
+            "COINGECKO_API_KEY_PARAMETER", ""
+        ).strip()
+        if coingecko_parameter:
+            api_key = _read_optional_parameter(
+                boto3.client("ssm"), coingecko_parameter
+            )
+            if api_key is not None:
+                coingecko = CoinGeckoAdapter(api_key, timeout=3.0)
+                coingecko_guard = DynamoDbSourceGuard(
+                    control_table, "coingecko_quote", minute_limit=25
+                )
         quote_resolver = QuoteResolver(
             data_repository,
             yahoo,
             yahoo_guard,
             finnhub=finnhub,
             finnhub_guard=finnhub_guard,
+            frankfurter=frankfurter,
+            frankfurter_guard=frankfurter_guard,
+            coingecko=coingecko,
+            coingecko_guard=coingecko_guard,
         )
         queue_url = os.environ.get("INGEST_QUEUE_URL", "").strip()
         discovery_service = None

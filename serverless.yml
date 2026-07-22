@@ -80,6 +80,7 @@ functions:
       DEFAULT_DAILY_QUOTA: "2000"
       HEALTH_MARKETS: US,IN,FX,CRYPTO
       FINNHUB_API_KEY_PARAMETER: ${self:custom.finnhubApiKeyParameter}
+      COINGECKO_API_KEY_PARAMETER: ${self:custom.coinGeckoApiKeyParameter}
       INGEST_QUEUE_URL:
         Ref: IngestQueue
     package:
@@ -112,6 +113,7 @@ functions:
           - ssm:GetParameter
         Resource:
           - arn:${aws:partition}:ssm:${aws:region}:${self:custom.awsAccountId}:parameter/fauxnance/${sls:stage}/upstreams/finnhub/api_key
+          - arn:${aws:partition}:ssm:${aws:region}:${self:custom.awsAccountId}:parameter/fauxnance/${sls:stage}/upstreams/coingecko/api_key
       - Effect: Allow
         Action:
           - sqs:SendMessage

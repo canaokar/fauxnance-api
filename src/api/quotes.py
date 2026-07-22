@@ -14,7 +14,12 @@ from src.shared.symbols import Market, parse_symbol
 class QuoteSource(Protocol):
     name: str
 
-    def get_quote(self, symbol: str) -> Quote: ...
+    def get_quote(
+        self,
+        symbol: str,
+        *,
+        adapter_hints: Mapping[str, Any] | None = None,
+    ) -> Quote: ...
 
 
 class SourceGuard(Protocol):
@@ -62,16 +67,34 @@ class QuoteResolver:
         *,
         finnhub: QuoteSource | None = None,
         finnhub_guard: SourceGuard | None = None,
+        frankfurter: QuoteSource | None = None,
+        frankfurter_guard: SourceGuard | None = None,
+        coingecko: QuoteSource | None = None,
+        coingecko_guard: SourceGuard | None = None,
         freshness: timedelta = timedelta(minutes=5),
         cleanup_ttl: timedelta = timedelta(days=7),
     ) -> None:
         if (finnhub is None) != (finnhub_guard is None):
             raise ValueError("Finnhub source and guard must be configured together")
+        if (frankfurter is None) != (frankfurter_guard is None):
+            raise ValueError("Frankfurter source and guard must be configured together")
+        if (coingecko is None) != (coingecko_guard is None):
+            raise ValueError("CoinGecko source and guard must be configured together")
         self._repository = repository
         self._yahoo = (yahoo, yahoo_guard)
         self._finnhub = (
             (finnhub, finnhub_guard)
             if finnhub is not None and finnhub_guard is not None
+            else None
+        )
+        self._frankfurter = (
+            (frankfurter, frankfurter_guard)
+            if frankfurter is not None and frankfurter_guard is not None
+            else None
+        )
+        self._coingecko = (
+            (coingecko, coingecko_guard)
+            if coingecko is not None and coingecko_guard is not None
             else None
         )
         self._freshness = freshness
@@ -99,12 +122,16 @@ class QuoteResolver:
                 )
 
         failures: list[str] = []
+        adapter_hints = metadata.get("adapterHints")
+        hints = adapter_hints if isinstance(adapter_hints, Mapping) else None
         for source, guard in self._sources(symbol):
             if not guard.try_acquire():
                 failures.append(f"{source.name}: unavailable")
                 continue
             try:
-                quote = _with_currency(source.get_quote(symbol), metadata)
+                quote = _with_currency(
+                    source.get_quote(symbol, adapter_hints=hints), metadata
+                )
             except Exception as exc:
                 guard.record_failure()
                 failures.append(f"{source.name}: {exc}")
@@ -155,6 +182,10 @@ class QuoteResolver:
         market = parse_symbol(symbol).market
         if market == Market.US and self._finnhub is not None:
             return (self._finnhub, self._yahoo)
+        if market == Market.FX and self._frankfurter is not None:
+            return (self._frankfurter, self._yahoo)
+        if market == Market.CRYPTO and self._coingecko is not None:
+            return (self._coingecko, self._yahoo)
         return (self._yahoo,)
 
 

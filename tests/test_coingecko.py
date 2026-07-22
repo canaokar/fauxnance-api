@@ -59,6 +59,39 @@ class CoinGeckoAdapterTests(unittest.TestCase):
         with self.assertRaises(CoinGeckoError):
             adapter.get_eod("X:BTC-USD", date(2026, 7, 20), date(2026, 7, 21), coin_id="bitcoin")
 
+    def test_fetches_crypto_quote_using_registry_coin_id(self):
+        calls = []
+        payload = [
+            {
+                "id": "bitcoin",
+                "current_price": 65872.09,
+                "price_change_24h": 21.03,
+                "price_change_percentage_24h": 0.03193,
+                "last_updated": "2026-07-22T06:34:10.758Z",
+            }
+        ]
+
+        def fetch(url, timeout, headers):
+            calls.append((url, timeout, headers))
+            return json.dumps(payload).encode()
+
+        quote = CoinGeckoAdapter("demo-secret", fetch=fetch).get_quote(
+            "X:BTC-USD", adapter_hints={"coinGeckoId": "bitcoin"}
+        )
+
+        self.assertEqual(quote.price, Decimal("65872.09"))
+        self.assertEqual(quote.previous_close, Decimal("65851.06"))
+        self.assertEqual(quote.currency, "USD")
+        self.assertEqual(quote.market_state, "open")
+        query = parse_qs(urlparse(calls[0][0]).query)
+        self.assertEqual(query["ids"], ["bitcoin"])
+        self.assertEqual(calls[0][2]["x-cg-demo-api-key"], "demo-secret")
+
+    def test_quote_requires_a_matching_registry_coin_id(self):
+        adapter = CoinGeckoAdapter("key", fetch=lambda *_args: b"[]")
+        with self.assertRaises(CapabilityUnavailable):
+            adapter.get_quote("X:BTC-USD")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,13 @@ from typing import Callable, Mapping
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
-from src.shared.market_data import Candle, Capability, CapabilityUnavailable, EodResult
+from src.shared.market_data import (
+    Candle,
+    Capability,
+    CapabilityUnavailable,
+    EodResult,
+    Quote,
+)
 from src.shared.symbols import Market, parse_symbol
 
 
@@ -81,8 +87,36 @@ class CoinGeckoAdapter:
         )
         return _parse_market_chart(payload, start=start, end=end)
 
-    def get_quote(self, _symbol: str) -> None:
-        raise CapabilityUnavailable("CoinGecko quote support is not configured")
+    def get_quote(
+        self,
+        symbol: str,
+        *,
+        adapter_hints: Mapping[str, object] | None = None,
+    ) -> Quote:
+        try:
+            info = parse_symbol(symbol)
+        except ValueError as exc:
+            raise CapabilityUnavailable("CoinGecko requires a crypto symbol") from exc
+        if info.market != Market.CRYPTO:
+            raise CapabilityUnavailable("CoinGecko requires a crypto symbol")
+        identifier = str((adapter_hints or {}).get("coinGeckoId", "")).lower()
+        if not _COIN_ID.fullmatch(identifier):
+            raise CapabilityUnavailable("CoinGecko coin ID is unavailable")
+        query = urlencode(
+            {
+                "vs_currency": info.currency.lower(),
+                "ids": identifier,
+                "price_change_percentage": "24h",
+                "precision": "full",
+            }
+        )
+        headers = {"Accept": "application/json", "x-cg-demo-api-key": self._api_key}
+        payload = self._fetch(
+            f"{self.base_url}/coins/markets?{query}",
+            self._timeout,
+            headers,
+        )
+        return _parse_quote(payload, identifier=identifier, currency=info.currency)
 
     def discover(self, _symbol: str) -> None:
         raise CapabilityUnavailable("CoinGecko discovery is not supported")
@@ -130,6 +164,54 @@ def _parse_market_chart(payload: bytes, *, start: date, end: date) -> EodResult:
     ) as exc:
         raise CoinGeckoError("CoinGecko returned an invalid market chart") from exc
     return EodResult(candles=[by_day[day] for day in sorted(by_day)])
+
+
+def _parse_quote(payload: bytes, *, identifier: str, currency: str) -> Quote:
+    try:
+        document = json.loads(payload.decode("utf-8"), parse_float=Decimal)
+        if not isinstance(document, list) or len(document) != 1:
+            raise CoinGeckoError("CoinGecko returned an ambiguous quote response")
+        row = document[0]
+        if row.get("id") != identifier:
+            raise CoinGeckoError("CoinGecko returned a different coin")
+        price = Decimal(str(row["current_price"]))
+        change = _optional_decimal(row.get("price_change_24h"))
+        percent = _optional_decimal(row.get("price_change_percentage_24h"))
+        previous = price - change if change is not None else None
+        as_of = datetime.fromisoformat(str(row["last_updated"]).replace("Z", "+00:00"))
+        if not price.is_finite() or price <= 0 or (previous is not None and previous <= 0):
+            raise CoinGeckoError("CoinGecko quote prices are invalid")
+        if as_of.tzinfo is None:
+            raise CoinGeckoError("CoinGecko quote timestamp has no timezone")
+        return Quote(
+            price=price,
+            currency=currency,
+            change=change,
+            change_percent=percent,
+            previous_close=previous,
+            as_of=as_of.astimezone(UTC),
+            market_state="open",
+            source="coingecko",
+        )
+    except CoinGeckoError:
+        raise
+    except (
+        AttributeError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        InvalidOperation,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise CoinGeckoError("CoinGecko returned an invalid quote response") from exc
+
+
+def _optional_decimal(value: object) -> Decimal | None:
+    if value is None:
+        return None
+    number = Decimal(str(value))
+    return number if number.is_finite() else None
 
 
 def _millis_date(value: object) -> date:

@@ -40,7 +40,7 @@ class FinnhubAdapter:
     def capabilities(self) -> set[Capability]:
         return {Capability.QUOTE_US}
 
-    def get_quote(self, symbol: str) -> Quote:
+    def get_quote(self, symbol: str, **_kwargs: object) -> Quote:
         try:
             info = parse_symbol(symbol)
         except ValueError as exc:

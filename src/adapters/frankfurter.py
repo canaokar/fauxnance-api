@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 import json
 from typing import Callable
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from src.shared.market_data import Candle, Capability, CapabilityUnavailable, EodResult
+from src.shared.market_data import (
+    Candle,
+    Capability,
+    CapabilityUnavailable,
+    EodResult,
+    Quote,
+)
 from src.shared.symbols import Market, parse_symbol
 
 
@@ -29,7 +35,7 @@ class FrankfurterAdapter:
         self._timeout = timeout
 
     def capabilities(self) -> set[Capability]:
-        return {Capability.EOD_FX}
+        return {Capability.EOD_FX, Capability.QUOTE_FX}
 
     def get_eod(self, symbol: str, start: date, end: date) -> EodResult:
         if start > end:
@@ -54,8 +60,20 @@ class FrankfurterAdapter:
         payload = self._fetch(f"{self.base_url}?{query}", self._timeout)
         return _parse_rates(payload, base=base, quote=quote, start=start, end=end)
 
-    def get_quote(self, _symbol: str) -> None:
-        raise CapabilityUnavailable("Frankfurter quote support is not configured")
+    def get_quote(self, symbol: str, **_kwargs: object) -> Quote:
+        try:
+            info = parse_symbol(symbol)
+        except ValueError as exc:
+            raise CapabilityUnavailable("Frankfurter requires an FX symbol") from exc
+        if info.market != Market.FX:
+            raise CapabilityUnavailable("Frankfurter requires an FX symbol")
+        base = info.symbol[3:6]
+        quote = info.symbol[6:9]
+        payload = self._fetch(
+            f"https://api.frankfurter.dev/v2/rate/{base}/{quote}",
+            self._timeout,
+        )
+        return _parse_quote(payload, base=base, quote=quote)
 
     def discover(self, _symbol: str) -> None:
         raise CapabilityUnavailable("Frankfurter discovery is not supported")
@@ -103,6 +121,39 @@ def _parse_rates(
         raise FrankfurterError("Frankfurter returned an invalid rates response") from exc
     candles.sort(key=lambda candle: candle.date)
     return EodResult(candles=candles)
+
+
+def _parse_quote(payload: bytes, *, base: str, quote: str) -> Quote:
+    try:
+        document = json.loads(payload.decode("utf-8"), parse_float=Decimal)
+        if document.get("base") != base or document.get("quote") != quote:
+            raise FrankfurterError("Frankfurter returned a different currency pair")
+        rate = Decimal(str(document["rate"]))
+        day = date.fromisoformat(document["date"])
+        if not rate.is_finite() or rate <= 0:
+            raise FrankfurterError("Frankfurter returned an invalid reference rate")
+        return Quote(
+            price=rate,
+            currency=quote,
+            change=None,
+            change_percent=None,
+            previous_close=None,
+            as_of=datetime(day.year, day.month, day.day, tzinfo=UTC),
+            market_state="closed",
+            source="frankfurter",
+        )
+    except FrankfurterError:
+        raise
+    except (
+        AttributeError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        InvalidOperation,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise FrankfurterError("Frankfurter returned an invalid rate response") from exc
 
 
 def _fetch(url: str, timeout: float) -> bytes:

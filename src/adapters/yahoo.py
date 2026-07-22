@@ -73,7 +73,7 @@ class YahooAdapter:
         )
         return _parse_chart(body, start=start, end=end)
 
-    def get_quote(self, symbol: str) -> Quote:
+    def get_quote(self, symbol: str, **_kwargs: object) -> Quote:
         vendor_symbol = quote(self.vendor_symbol(symbol), safe="-.")
         params = urlencode({"range": "1d", "interval": "1m"})
         body = self._fetch(

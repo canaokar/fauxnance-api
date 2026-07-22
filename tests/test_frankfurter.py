@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 import json
 from urllib.parse import parse_qs, urlparse
@@ -36,6 +36,21 @@ class FrankfurterAdapterTests(unittest.TestCase):
             FrankfurterAdapter(
                 fetch=lambda _url, _timeout: b'[{"date":"2026-07-21","base":"USD","quote":"EUR","rate":1}]'
             ).get_eod("FX:EURUSD", date(2026, 7, 20), date(2026, 7, 21))
+
+    def test_fetches_latest_reference_rate_as_a_quote(self):
+        calls = []
+        adapter = FrankfurterAdapter(
+            fetch=lambda url, timeout: calls.append((url, timeout))
+            or b'{"date":"2026-07-22","base":"EUR","quote":"USD","rate":1.144}'
+        )
+
+        quote = adapter.get_quote("FX:EURUSD")
+
+        self.assertEqual(quote.price, Decimal("1.144"))
+        self.assertEqual(quote.currency, "USD")
+        self.assertEqual(quote.as_of, datetime(2026, 7, 22, tzinfo=UTC))
+        self.assertEqual(quote.market_state, "closed")
+        self.assertEqual(calls[0][0], "https://api.frankfurter.dev/v2/rate/EUR/USD")
 
 
 if __name__ == "__main__":

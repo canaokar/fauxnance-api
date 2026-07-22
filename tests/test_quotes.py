@@ -77,8 +77,8 @@ class Source:
         self.outcome = outcome if outcome is not None else quote(source=name)
         self.calls = []
 
-    def get_quote(self, symbol):
-        self.calls.append(symbol)
+    def get_quote(self, symbol, **kwargs):
+        self.calls.append((symbol, kwargs))
         if isinstance(self.outcome, Exception):
             raise self.outcome
         return self.outcome
@@ -119,6 +119,38 @@ class QuoteResolverTests(unittest.TestCase):
         self.assertEqual(repository.puts[0][1].currency, "USD")
         self.assertEqual(
             repository.puts[0][2]["expires_at"], NOW + timedelta(days=7)
+        )
+
+    def test_fx_prefers_frankfurter_and_crypto_passes_adapter_hints(self):
+        yahoo = Source("yahoo")
+        frankfurter = Source("frankfurter")
+        coingecko = Source("coingecko")
+        resolver = QuoteResolver(
+            Repository(),
+            yahoo,
+            Guard(),
+            frankfurter=frankfurter,
+            frankfurter_guard=Guard(),
+            coingecko=coingecko,
+            coingecko_guard=Guard(),
+        )
+
+        fx = resolver.resolve("FX:EURUSD", {"currency": "USD"}, now=NOW)
+        crypto = resolver.resolve(
+            "X:BTC-USD",
+            {
+                "currency": "USD",
+                "adapterHints": {"coinGeckoId": "bitcoin"},
+            },
+            now=NOW,
+        )
+
+        self.assertEqual(fx.source, "upstream:frankfurter")
+        self.assertEqual(crypto.source, "upstream:coingecko")
+        self.assertEqual(yahoo.calls, [])
+        self.assertEqual(
+            coingecko.calls,
+            [("X:BTC-USD", {"adapter_hints": {"coinGeckoId": "bitcoin"}})],
         )
 
     def test_stale_cache_is_served_only_after_upstream_failure(self):
