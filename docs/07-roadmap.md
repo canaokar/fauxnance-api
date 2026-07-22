@@ -59,7 +59,7 @@ and crypto backfills completed as separately resumable jobs during the Phase 3
 deployment (594 symbol-year units total); operational schedule observation
 continues after code completion.
 
-## Phase 4 — Cohort operations & polish
+## Phase 4 — Cohort operations & polish *(implemented and deployed 2026-07-22; live pilot/week-one observation pending)*
 
 - Admin API + `fnx` CLI; cohort/key lifecycle; CSV issuance flow.
 - Student-facing docs: quickstart (curl/Python/JS/Excel), error-handling guide,
@@ -69,6 +69,11 @@ continues after code completion.
 - Dry run with a pilot group before the first real cohort.
 
 **Exit criterion:** issue 50 keys for a real cohort in < 10 minutes, survive week one without operator intervention.
+
+The admin API, `fnx` CLI, student/operator documentation, recoverable backfill
+operations, pilot harness, and CloudWatch dashboard/alarms are deployed. The
+remaining exit evidence is operational: run the opt-in 50-key pilot with an
+allowlisted admin key, then observe the first real cohort for one week.
 
 ## Backlog (v1.x, unscheduled)
 

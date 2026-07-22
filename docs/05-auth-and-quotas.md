@@ -94,7 +94,7 @@ fnx cohorts create "HDFC-GradBatch-2026Q3" --quota 2000 --expires 2026-12-31
 fnx keys issue --cohort <id> --labels-file students.txt   # one key per line, CSV out
 fnx keys revoke <keyId>
 fnx keys list --cohort <id>
-fnx backfill --universe sp500 --from 2016-01-01
+fnx backfill --universe us-phase2-v1 --from 2016-01-01 --to 2026-07-22
 fnx jobs status <jobId>
 ```
 
