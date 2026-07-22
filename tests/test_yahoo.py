@@ -67,13 +67,48 @@ class YahooAdapterTests(unittest.TestCase):
         self.assertEqual(calls[0][1], 10.0)
         query = parse_qs(urlparse(calls[0][0]).query)
         self.assertEqual(query["interval"], ["1d"])
+        self.assertEqual(query["events"], ["div,splits"])
         self.assertEqual(
             datetime.fromtimestamp(int(query["period1"][0]), UTC).date(),
-            date(2026, 7, 20),
+            date(2026, 7, 10),
         )
         self.assertEqual(
             datetime.fromtimestamp(int(query["period2"][0]), UTC).date(),
             date(2026, 7, 22),
+        )
+
+    def test_extracts_split_and_dividend_adjustment_factors(self):
+        chart = json.loads(json.dumps(CHART))
+        chart["chart"]["result"][0]["events"] = {
+            "splits": {
+                "split": {
+                    "date": epoch("2026-07-21"),
+                    "numerator": 4,
+                    "denominator": 1,
+                    "splitRatio": "4:1",
+                }
+            },
+            "dividends": {
+                "dividend": {
+                    "date": epoch("2026-07-21"),
+                    "amount": 1.25,
+                }
+            },
+        }
+
+        result = YahooAdapter(
+            fetch=lambda _url, _timeout: json.dumps(chart).encode()
+        ).get_eod("AAPL", date(2026, 7, 20), date(2026, 7, 21))
+
+        self.assertEqual([action.type for action in result.actions], ["split", "dividend"])
+        split, dividend = result.actions
+        self.assertEqual(split.value, Decimal("4"))
+        self.assertEqual(split.factor, Decimal("0.25"))
+        self.assertEqual(dividend.value, Decimal("1.25"))
+        self.assertEqual(dividend.reference_close, Decimal("213.25"))
+        self.assertEqual(
+            dividend.factor,
+            (Decimal("213.25") - Decimal("1.25")) / Decimal("213.25"),
         )
 
     def test_skips_null_price_rows_and_allows_null_volume(self):

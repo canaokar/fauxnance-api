@@ -4,7 +4,7 @@ import json
 import unittest
 
 from src.ingest.handler import IngestWorker, _read_parameter, handler
-from src.shared.market_data import Candle, EodResult
+from src.shared.market_data import Candle, CorporateAction, EodResult
 
 
 def candle(day="2026-07-21", *, low="9", open_="10", close="10.5", high="11"):
@@ -51,6 +51,9 @@ class Repository:
 
     def write_candles(self, symbol, candles):
         self.calls.append(("write", symbol, candles))
+
+    def write_actions(self, symbol, actions):
+        self.calls.append(("actions", symbol, actions))
 
     def advance_symbol_coverage(self, symbol, first, last):
         self.calls.append(("coverage", symbol, first, last))
@@ -146,6 +149,23 @@ class IngestWorkerTests(unittest.TestCase):
             response, {"batchItemFailures": [{"itemIdentifier": "bad-candle"}]}
         )
         self.assertEqual(repository.calls, [])
+
+    def test_persists_valid_corporate_actions_with_candles(self):
+        action = CorporateAction(
+            date=date(2026, 7, 21),
+            type="split",
+            value=Decimal("4"),
+            factor=Decimal("0.25"),
+        )
+        repository = Repository()
+        worker = IngestWorker(
+            Source({"AAPL": EodResult(candles=[candle()], actions=[action])}),
+            repository,
+        )
+
+        worker.process(eod_body())
+
+        self.assertIn(("actions", "AAPL", [action]), repository.calls)
 
     def test_missing_optional_alpha_parameter_keeps_yahoo_available(self):
         self.assertIsNone(

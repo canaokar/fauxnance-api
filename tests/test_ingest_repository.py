@@ -1,8 +1,10 @@
 from datetime import UTC, date, datetime
+from decimal import Decimal
 import json
 import unittest
 
 from src.ingest.repository import DynamoDBIngestRepository
+from src.shared.market_data import CorporateAction
 
 
 class ConditionalFailure(Exception):
@@ -78,6 +80,20 @@ class SeedTable:
         return {}
 
 
+class ActionTable:
+    def __init__(self):
+        self.item = None
+        self.puts = []
+
+    def get_item(self, **_request):
+        return {"Item": self.item} if self.item else {}
+
+    def put_item(self, **request):
+        self.puts.append(request)
+        self.item = request["Item"]
+        return {}
+
+
 class ExistingSeedTable(SeedTable):
     def __init__(self):
         super().__init__()
@@ -137,6 +153,49 @@ class ControlTable:
 
 
 class IngestRepositoryTests(unittest.TestCase):
+    def test_action_merge_updates_corrections_and_preserves_other_events(self):
+        table = ActionTable()
+        table.item = {
+            "PK": "SYM#AAPL",
+            "SK": "ADJ",
+            "revision": 3,
+            "actions": [
+                {
+                    "date": "2026-05-01",
+                    "type": "dividend",
+                    "value": 1,
+                    "factor": Decimal("0.99"),
+                    "referenceClose": 100,
+                },
+                {
+                    "date": "2020-08-31",
+                    "type": "split",
+                    "value": 4,
+                    "factor": Decimal("0.25"),
+                },
+            ],
+        }
+        repository = DynamoDBIngestRepository(table)
+
+        repository.write_actions(
+            "AAPL",
+            [
+                CorporateAction(
+                    date=date(2026, 5, 1),
+                    type="dividend",
+                    value=Decimal("1.1"),
+                    factor=Decimal("0.989"),
+                    reference_close=Decimal("100"),
+                )
+            ],
+        )
+
+        written = table.puts[0]
+        self.assertEqual(written["ExpressionAttributeValues"], {":expected": 3})
+        self.assertEqual(written["Item"]["revision"], 4)
+        self.assertEqual(len(written["Item"]["actions"]), 2)
+        self.assertEqual(written["Item"]["actions"][0]["value"], Decimal("1.1"))
+
     def test_seed_symbol_registers_metadata_without_fake_coverage(self):
         table = SeedTable()
         repository = DynamoDBIngestRepository(table)

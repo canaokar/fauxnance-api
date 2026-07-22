@@ -11,7 +11,7 @@ from src.adapters.us_eod import UsEodChain
 from src.adapters.yahoo import YahooAdapter
 from src.ingest.messages import BackfillYearMessage, EodBatchMessage, parse_message
 from src.ingest.repository import DynamoDBIngestRepository
-from src.ingest.validation import validate_candles
+from src.ingest.validation import validate_actions, validate_candles
 from src.shared.market_data import EodResult
 from src.shared.source_guard import ALPHA_VANTAGE_DAILY_LIMIT, DynamoDbSourceGuard
 
@@ -34,6 +34,9 @@ class IngestWorker:
         candles = validate_candles(
             result.candles, start=message.start, end=message.end
         )
+        actions = validate_actions(
+            result.actions, start=message.start, end=message.end
+        )
 
         if candles:
             self._repository.write_candles(message.symbol, candles)
@@ -41,6 +44,8 @@ class IngestWorker:
                 message.symbol, candles[0].date, candles[-1].date
             )
             self._repository.advance_market_status("US", candles[-1].date)
+        if actions:
+            self._repository.write_actions(message.symbol, actions)
 
         if isinstance(message, BackfillYearMessage):
             self._repository.complete_backfill_work(

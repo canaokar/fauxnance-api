@@ -1,4 +1,4 @@
-"""Yahoo chart adapter for Phase 1 US end-of-day data."""
+"""Yahoo chart adapter for end-of-day data and corporate actions."""
 
 from __future__ import annotations
 
@@ -10,11 +10,13 @@ from typing import Callable
 from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.shared.market_data import (
     Candle,
     Capability,
     CapabilityUnavailable,
+    CorporateAction,
     EodResult,
 )
 
@@ -44,10 +46,14 @@ class YahooAdapter:
 
         params = urlencode(
             {
-                "period1": _epoch(start),
+                # The warm-up supplies a reference close when a dividend falls
+                # on the first requested day. Returned candles are still trimmed
+                # to the caller's inclusive range.
+                "period1": _epoch(start - timedelta(days=10)),
                 "period2": _epoch(end + timedelta(days=1)),
                 "interval": "1d",
                 "includeAdjustedClose": "false",
+                "events": "div,splits",
             }
         )
         vendor_symbol = quote(self.vendor_symbol(symbol), safe="-.")
@@ -110,6 +116,7 @@ def _parse_chart(payload: bytes, *, start: date, end: date) -> EodResult:
                 return EodResult(candles=[])
             raise YahooError(str(message))
         result = chart["result"][0]
+        timezone = _timezone(result.get("meta", {}).get("exchangeTimezoneName"))
         timestamps = result["timestamp"]
         quote_values = result["indicators"]["quote"][0]
         series = [
@@ -137,7 +144,7 @@ def _parse_chart(payload: bytes, *, start: date, end: date) -> EodResult:
         ):
             if None in (open_, high, low, close_):
                 continue
-            candle_date = datetime.fromtimestamp(int(timestamp), UTC).date()
+            candle_date = datetime.fromtimestamp(int(timestamp), timezone).date()
             candle = Candle(
                 date=candle_date,
                 open=Decimal(open_),
@@ -156,8 +163,93 @@ def _parse_chart(payload: bytes, *, start: date, end: date) -> EodResult:
         raise YahooError("Yahoo chart contains an invalid candle") from exc
 
     all_candles.sort(key=lambda candle: candle.date)
+    actions = _parse_actions(
+        result.get("events", {}), all_candles, start, end, timezone
+    )
     candles = [candle for candle in all_candles if start <= candle.date <= end]
-    return EodResult(candles=candles)
+    return EodResult(candles=candles, actions=actions)
+
+
+def _parse_actions(
+    events: object,
+    candles: list[Candle],
+    start: date,
+    end: date,
+    timezone: ZoneInfo,
+) -> list[CorporateAction]:
+    if events is None:
+        return []
+    if not isinstance(events, dict):
+        raise YahooError("Yahoo chart events are invalid")
+
+    actions: list[CorporateAction] = []
+    try:
+        splits = events.get("splits", {})
+        if not isinstance(splits, dict):
+            raise YahooError("Yahoo split events are invalid")
+        for raw in splits.values():
+            action_date = datetime.fromtimestamp(int(raw["date"]), timezone).date()
+            if not start <= action_date <= end:
+                continue
+            numerator = Decimal(str(raw["numerator"]))
+            denominator = Decimal(str(raw["denominator"]))
+            if numerator <= 0 or denominator <= 0:
+                raise YahooError("Yahoo split ratio must be positive")
+            actions.append(
+                CorporateAction(
+                    date=action_date,
+                    type="split",
+                    value=numerator / denominator,
+                    factor=denominator / numerator,
+                )
+            )
+
+        dividends = events.get("dividends", {})
+        if not isinstance(dividends, dict):
+            raise YahooError("Yahoo dividend events are invalid")
+        for raw in dividends.values():
+            action_date = datetime.fromtimestamp(int(raw["date"]), timezone).date()
+            if not start <= action_date <= end:
+                continue
+            amount = Decimal(str(raw["amount"]))
+            reference = next(
+                (row.close for row in reversed(candles) if row.date < action_date),
+                None,
+            )
+            # Yahoo can return an event at the start boundary without the prior
+            # session required by the documented adjustment convention. A later
+            # overlapping ingest will include the reference and persist it.
+            if reference is None:
+                continue
+            if amount < 0 or reference <= amount:
+                raise YahooError("Yahoo dividend event is invalid")
+            actions.append(
+                CorporateAction(
+                    date=action_date,
+                    type="dividend",
+                    value=amount,
+                    factor=(reference - amount) / reference,
+                    reference_close=reference,
+                )
+            )
+    except YahooError:
+        raise
+    except (InvalidOperation, KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise YahooError("Yahoo chart contains an invalid corporate action") from exc
+
+    actions.sort(key=lambda action: (action.date, action.type), reverse=True)
+    return actions
+
+
+def _timezone(name: object) -> ZoneInfo:
+    if name is None:
+        return ZoneInfo("UTC")
+    if not isinstance(name, str):
+        raise YahooError("Yahoo exchange timezone is invalid")
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError as exc:
+        raise YahooError("Yahoo exchange timezone is invalid") from exc
 
 
 def _is_no_data_payload(payload: bytes) -> bool:

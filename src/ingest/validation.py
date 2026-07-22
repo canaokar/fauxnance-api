@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Iterable
 
-from src.shared.market_data import Candle
+from src.shared.market_data import Candle, CorporateAction
 
 
 class InvalidCandle(ValueError):
@@ -39,4 +39,33 @@ def validate_candles(
         seen.add(candle.date)
         validated.append(candle)
     validated.sort(key=lambda candle: candle.date)
+    return validated
+
+
+def validate_actions(
+    actions: Iterable[CorporateAction], *, start: date, end: date
+) -> list[CorporateAction]:
+    validated: list[CorporateAction] = []
+    seen: set[tuple[date, str]] = set()
+    for action in actions:
+        if action.type not in {"split", "dividend"}:
+            raise InvalidCandle("corporate action type is invalid")
+        if not start <= action.date <= end:
+            raise InvalidCandle("corporate action date is outside the requested range")
+        if (action.date, action.type) in seen:
+            raise InvalidCandle("corporate actions must be unique by date and type")
+        seen.add((action.date, action.type))
+        decimals = (action.value, action.factor)
+        if any(not value.is_finite() for value in decimals):
+            raise InvalidCandle("corporate action values must be finite")
+        if action.value < 0 or action.factor <= 0:
+            raise InvalidCandle("corporate action values are invalid")
+        if action.type == "split" and action.value <= 0:
+            raise InvalidCandle("split ratio must be positive")
+        if action.type == "dividend":
+            reference = action.reference_close
+            if reference is None or not reference.is_finite() or reference <= 0:
+                raise InvalidCandle("dividend reference close is invalid")
+        validated.append(action)
+    validated.sort(key=lambda action: (action.date, action.type), reverse=True)
     return validated

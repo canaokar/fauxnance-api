@@ -8,7 +8,7 @@ import random
 import time
 from typing import Any, Callable, Mapping, Sequence
 
-from src.shared.market_data import Candle
+from src.shared.market_data import Candle, CorporateAction
 
 
 class DynamoDBIngestRepository:
@@ -33,6 +33,55 @@ class DynamoDBIngestRepository:
             chunks[candle.date.strftime("%Y-%m")].append(candle)
         for month, month_candles in sorted(chunks.items()):
             self._merge_chunk(symbol, month, month_candles)
+
+    def write_actions(
+        self, symbol: str, actions: Sequence[CorporateAction]
+    ) -> None:
+        """Merge action corrections by ex-date and type with optimistic locking."""
+
+        if not actions:
+            return
+        key = {"PK": f"SYM#{symbol}", "SK": "ADJ"}
+        for attempt in range(self._max_merge_attempts):
+            existing = self._data.get_item(Key=key, ConsistentRead=True).get("Item")
+            prior = existing.get("actions", []) if existing else []
+            by_identity = {
+                (str(item["date"]), str(item["type"])): dict(item)
+                for item in prior
+            }
+            for action in actions:
+                by_identity[(action.date.isoformat(), action.type)] = _action_item(action)
+
+            revision = int(existing.get("revision", 0)) if existing else 0
+            item = {
+                **key,
+                "revision": revision + 1,
+                "actions": sorted(
+                    by_identity.values(),
+                    key=lambda value: (str(value["date"]), str(value["type"])),
+                    reverse=True,
+                ),
+            }
+            request: dict[str, Any] = {"Item": item}
+            if existing:
+                request.update(
+                    {
+                        "ConditionExpression": "revision = :expected",
+                        "ExpressionAttributeValues": {":expected": revision},
+                    }
+                )
+            else:
+                request["ConditionExpression"] = "attribute_not_exists(PK)"
+            try:
+                self._data.put_item(**request)
+                return
+            except Exception as exc:
+                if (
+                    not _is_conditional_failure(exc)
+                    or attempt + 1 == self._max_merge_attempts
+                ):
+                    raise
+                self._pause(random.uniform(0.02, 0.1) * (attempt + 1))
 
     def write_symbol(
         self,
@@ -360,6 +409,18 @@ def _candle_item(candle: Candle) -> dict[str, Any]:
         "v": candle.volume,
         "src": candle.source,
     }
+
+
+def _action_item(action: CorporateAction) -> dict[str, Any]:
+    item: dict[str, Any] = {
+        "date": action.date.isoformat(),
+        "type": action.type,
+        "value": action.value,
+        "factor": action.factor,
+    }
+    if action.reference_close is not None:
+        item["referenceClose"] = action.reference_close
+    return item
 
 
 def _symbol_metadata(
