@@ -55,8 +55,9 @@ stored history still serve candles and quotes using stored, stale, or explicitly
 synthetic data. A newly discovered symbol without a real anchor may remain `202`.
 
 The offline behavior is covered by deterministic unit tests. Initial India, FX,
-and crypto backfills were launched as separately resumable jobs during the Phase
-3 deployment; operational schedule observation continues after code completion.
+and crypto backfills completed as separately resumable jobs during the Phase 3
+deployment (594 symbol-year units total); operational schedule observation
+continues after code completion.
 
 ## Phase 4 — Cohort operations & polish
 

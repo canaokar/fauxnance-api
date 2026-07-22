@@ -10,7 +10,8 @@ the authenticated HTTP API, API-key quotas, 515 US symbols, 30 Indian equities,
 12 FX pairs, 12 cryptocurrencies, resumable and lazy historical backfills,
 corporate actions, cache-first quotes, and deterministic synthetic fallback.
 Four market schedules feed the guarded multi-source ingest pipeline through SQS
-with retries and a DLQ. The API uses API Gateway's generated URL:
+with retries and a DLQ. The initial India, FX, and crypto historical backfills
+completed on 2026-07-22. The API uses API Gateway's generated URL:
 `https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com`.
 
 | Doc | Contents |
