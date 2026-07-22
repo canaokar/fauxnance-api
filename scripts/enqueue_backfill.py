@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or resume a queued US EOD backfill job."""
+"""Create or resume a queued EOD backfill job for a versioned universe."""
 
 from __future__ import annotations
 

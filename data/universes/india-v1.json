@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "india-phase3-v1",
+  "market": "IN",
+  "source": {
+    "name": "Fauxnance curated India teaching universe",
+    "asOf": "2026-07-22",
+    "notes": "Representative liquid NSE and BSE listings; Yahoo suffixes are pinned in each canonical symbol."
+  },
+  "symbols": [
+    {"symbol":"RELIANCE.NS","name":"Reliance Industries Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"TCS.NS","name":"Tata Consultancy Services Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"HDFCBANK.NS","name":"HDFC Bank Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"ICICIBANK.NS","name":"ICICI Bank Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"INFY.NS","name":"Infosys Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"BHARTIARTL.NS","name":"Bharti Airtel Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"SBIN.NS","name":"State Bank of India","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"LICI.NS","name":"Life Insurance Corporation of India","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"ITC.NS","name":"ITC Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"LT.NS","name":"Larsen & Toubro Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"HINDUNILVR.NS","name":"Hindustan Unilever Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"BAJFINANCE.NS","name":"Bajaj Finance Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"MARUTI.NS","name":"Maruti Suzuki India Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"SUNPHARMA.NS","name":"Sun Pharmaceutical Industries Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"KOTAKBANK.NS","name":"Kotak Mahindra Bank Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"AXISBANK.NS","name":"Axis Bank Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"TITAN.NS","name":"Titan Company Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"ASIANPAINT.NS","name":"Asian Paints Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"ULTRACEMCO.NS","name":"UltraTech Cement Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"NTPC.NS","name":"NTPC Limited","type":"equity","exchange":"NSE","currency":"INR"},
+    {"symbol":"RELIANCE.BO","name":"Reliance Industries Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"TCS.BO","name":"Tata Consultancy Services Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"HDFCBANK.BO","name":"HDFC Bank Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"ICICIBANK.BO","name":"ICICI Bank Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"INFY.BO","name":"Infosys Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"SBIN.BO","name":"State Bank of India","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"ITC.BO","name":"ITC Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"LT.BO","name":"Larsen & Toubro Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"MARUTI.BO","name":"Maruti Suzuki India Limited","type":"equity","exchange":"BSE","currency":"INR"},
+    {"symbol":"TATASTEEL.BO","name":"Tata Steel Limited","type":"equity","exchange":"BSE","currency":"INR"}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "id": "crypto-phase3-v1",
+  "market": "CRYPTO",
+  "source": {
+    "name": "Fauxnance curated major-crypto teaching universe",
+    "url": "https://www.coingecko.com/",
+    "asOf": "2026-07-22"
+  },
+  "symbols": [
+    {"symbol":"X:BTC-USD","name":"Bitcoin","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"bitcoin"}},
+    {"symbol":"X:ETH-USD","name":"Ethereum","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"ethereum"}},
+    {"symbol":"X:SOL-USD","name":"Solana","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"solana"}},
+    {"symbol":"X:XRP-USD","name":"XRP","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"ripple"}},
+    {"symbol":"X:BNB-USD","name":"BNB","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"binancecoin"}},
+    {"symbol":"X:ADA-USD","name":"Cardano","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"cardano"}},
+    {"symbol":"X:DOGE-USD","name":"Dogecoin","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"dogecoin"}},
+    {"symbol":"X:AVAX-USD","name":"Avalanche","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"avalanche-2"}},
+    {"symbol":"X:LINK-USD","name":"Chainlink","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"chainlink"}},
+    {"symbol":"X:DOT-USD","name":"Polkadot","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"polkadot"}},
+    {"symbol":"X:LTC-USD","name":"Litecoin","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"litecoin"}},
+    {"symbol":"X:BCH-USD","name":"Bitcoin Cash","type":"crypto","exchange":"CRYPTO","currency":"USD","adapterHints":{"coinGeckoId":"bitcoin-cash"}}
+  ]
+}

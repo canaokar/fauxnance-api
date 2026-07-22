@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "id": "fx-phase3-v1",
+  "market": "FX",
+  "source": {
+    "name": "Fauxnance curated ECB reference-rate universe",
+    "url": "https://frankfurter.dev/",
+    "asOf": "2026-07-22"
+  },
+  "symbols": [
+    {"symbol":"FX:EURUSD","name":"Euro / US Dollar","type":"fx","exchange":"FX","currency":"USD"},
+    {"symbol":"FX:GBPUSD","name":"British Pound / US Dollar","type":"fx","exchange":"FX","currency":"USD"},
+    {"symbol":"FX:USDJPY","name":"US Dollar / Japanese Yen","type":"fx","exchange":"FX","currency":"JPY"},
+    {"symbol":"FX:USDINR","name":"US Dollar / Indian Rupee","type":"fx","exchange":"FX","currency":"INR"},
+    {"symbol":"FX:USDCHF","name":"US Dollar / Swiss Franc","type":"fx","exchange":"FX","currency":"CHF"},
+    {"symbol":"FX:USDCAD","name":"US Dollar / Canadian Dollar","type":"fx","exchange":"FX","currency":"CAD"},
+    {"symbol":"FX:AUDUSD","name":"Australian Dollar / US Dollar","type":"fx","exchange":"FX","currency":"USD"},
+    {"symbol":"FX:NZDUSD","name":"New Zealand Dollar / US Dollar","type":"fx","exchange":"FX","currency":"USD"},
+    {"symbol":"FX:EURGBP","name":"Euro / British Pound","type":"fx","exchange":"FX","currency":"GBP"},
+    {"symbol":"FX:EURJPY","name":"Euro / Japanese Yen","type":"fx","exchange":"FX","currency":"JPY"},
+    {"symbol":"FX:GBPJPY","name":"British Pound / Japanese Yen","type":"fx","exchange":"FX","currency":"JPY"},
+    {"symbol":"FX:EURINR","name":"Euro / Indian Rupee","type":"fx","exchange":"FX","currency":"INR"}
+  ]
+}
