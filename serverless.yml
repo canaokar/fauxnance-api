@@ -50,6 +50,10 @@ provider:
         - X-Api-Key
       allowedMethods:
         - GET
+        - POST
+        - PATCH
+        - DELETE
+        - OPTIONS
       allowCredentials: false
       exposedResponseHeaders:
         - Retry-After
@@ -155,6 +159,68 @@ functions:
       - httpApi:
           method: GET
           path: /v1/quotes/{symbol}
+          authorizer:
+            name: apiKeyAuthorizer
+
+  admin:
+    handler: src.admin.handler.handler
+    description: Manages Fauxnance cohorts and student API keys
+    memorySize: 512
+    timeout: 15
+    environment:
+      CONTROL_TABLE: ${self:custom.controlTableName}
+    package:
+      patterns:
+        - src/__init__.py
+        - src/admin/**
+        - src/shared/**
+    iamRoleStatementsName: ${self:service}-${sls:stage}-admin-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:BatchGetItem
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:TransactWriteItems
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+    events:
+      - httpApi:
+          method: POST
+          path: /v1/admin/cohorts
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/admin/cohorts
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/admin/cohorts/{cohortId}
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: PATCH
+          path: /v1/admin/cohorts/{cohortId}
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: POST
+          path: /v1/admin/keys
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/admin/keys
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: DELETE
+          path: /v1/admin/keys/{keyId}
           authorizer:
             name: apiKeyAuthorizer
 
