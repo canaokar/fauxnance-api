@@ -148,14 +148,44 @@ class YahooAdapterTests(unittest.TestCase):
                 Capability.EOD_IN,
                 Capability.EOD_FX,
                 Capability.EOD_CRYPTO,
+                Capability.QUOTE_US,
+                Capability.QUOTE_IN,
+                Capability.QUOTE_FX,
+                Capability.QUOTE_CRYPTO,
             },
         )
         with self.assertRaises(CapabilityUnavailable):
             adapter.vendor_symbol("bad symbol")
         with self.assertRaises(CapabilityUnavailable):
-            adapter.get_quote("AAPL")
-        with self.assertRaises(CapabilityUnavailable):
             adapter.discover("AAPL")
+
+    def test_normalizes_quote_metadata_for_every_market(self):
+        chart = {
+            "chart": {
+                "result": [
+                    {
+                        "meta": {
+                            "regularMarketPrice": 232.71,
+                            "chartPreviousClose": 232.5,
+                            "regularMarketTime": 1784648530,
+                            "marketState": "REGULAR",
+                            "currency": "USD",
+                        }
+                    }
+                ],
+                "error": None,
+            }
+        }
+        calls = []
+        quote_value = YahooAdapter(
+            fetch=lambda url, timeout: calls.append((url, timeout)) or json.dumps(chart).encode()
+        ).get_quote("AAPL")
+
+        self.assertEqual(quote_value.price, Decimal("232.71"))
+        self.assertEqual(quote_value.previous_close, Decimal("232.5"))
+        self.assertEqual(quote_value.change, Decimal("0.21"))
+        self.assertEqual(quote_value.market_state, "open")
+        self.assertIn("range=1d", calls[0][0])
 
     def test_provider_error_and_malformed_payload_are_explicit(self):
         provider_error = {

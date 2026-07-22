@@ -69,6 +69,34 @@ class SourceGuardTests(unittest.TestCase):
         table.budget_exhausted = True
         self.assertFalse(guard.try_acquire())
 
+    def test_minute_budget_uses_a_minute_window_and_short_ttl(self):
+        table = FakeTable()
+        guard = DynamoDbSourceGuard(
+            table,
+            "finnhub",
+            minute_limit=55,
+            clock=lambda: NOW,
+        )
+
+        self.assertTrue(guard.try_acquire())
+
+        budget = table.calls[-1]
+        self.assertEqual(
+            budget["Key"],
+            {"PK": "SRC#finnhub", "SK": "BUDGET#2026-07-21T12:00Z"},
+        )
+        self.assertEqual(budget["ExpressionAttributeValues"][":limit"], 55)
+        self.assertLessEqual(
+            budget["ExpressionAttributeValues"][":expires"],
+            int((NOW + timedelta(minutes=2)).timestamp()),
+        )
+
+    def test_budget_windows_are_mutually_exclusive(self):
+        with self.assertRaises(ValueError):
+            DynamoDbSourceGuard(
+                FakeTable(), "bad", daily_limit=1, minute_limit=1
+            )
+
     def test_three_failures_open_the_circuit_for_fifteen_minutes(self):
         table = FakeTable()
         guard = DynamoDbSourceGuard(table, "yahoo", clock=lambda: NOW)

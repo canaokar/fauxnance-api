@@ -17,6 +17,7 @@ from src.shared.market_data import (
     CapabilityUnavailable,
     CorporateAction,
     EodResult,
+    Quote,
 )
 from src.shared.symbols import parse_symbol
 
@@ -42,6 +43,10 @@ class YahooAdapter:
             Capability.EOD_IN,
             Capability.EOD_FX,
             Capability.EOD_CRYPTO,
+            Capability.QUOTE_US,
+            Capability.QUOTE_IN,
+            Capability.QUOTE_FX,
+            Capability.QUOTE_CRYPTO,
         }
 
     def get_eod(self, symbol: str, start: date, end: date) -> EodResult:
@@ -66,8 +71,13 @@ class YahooAdapter:
         )
         return _parse_chart(body, start=start, end=end)
 
-    def get_quote(self, _symbol: str) -> None:
-        raise CapabilityUnavailable("Yahoo quote support is not part of Phase 1")
+    def get_quote(self, symbol: str) -> Quote:
+        vendor_symbol = quote(self.vendor_symbol(symbol), safe="-.")
+        params = urlencode({"range": "1d", "interval": "1m"})
+        body = self._fetch(
+            f"{self.base_url}/{vendor_symbol}?{params}", self._timeout
+        )
+        return _parse_quote(body)
 
     def discover(self, _symbol: str) -> None:
         raise CapabilityUnavailable("Yahoo discovery support is not part of Phase 1")
@@ -264,3 +274,52 @@ def _is_no_data_payload(payload: bytes) -> bool:
     return isinstance(message, str) and message.startswith(
         "Data doesn't exist for startDate"
     )
+
+
+def _parse_quote(payload: bytes) -> Quote:
+    try:
+        document = json.loads(payload.decode("utf-8"), parse_float=Decimal)
+        chart = document["chart"]
+        if chart.get("error"):
+            message = chart["error"].get("description") or "Yahoo chart error"
+            raise YahooError(str(message))
+        meta = chart["result"][0]["meta"]
+        price = Decimal(str(meta["regularMarketPrice"]))
+        previous = Decimal(str(meta.get("chartPreviousClose", meta.get("previousClose"))))
+        timestamp = int(meta["regularMarketTime"])
+        if not price.is_finite() or price <= 0 or not previous.is_finite() or previous <= 0:
+            raise YahooError("Yahoo quote prices are invalid")
+        change = price - previous
+        raw_state = str(meta.get("marketState", "unknown")).upper()
+        market_state = {
+            "REGULAR": "open",
+            "PRE": "pre",
+            "PREPRE": "pre",
+            "POST": "post",
+            "POSTPOST": "post",
+            "CLOSED": "closed",
+        }.get(raw_state, "unknown")
+        currency = meta.get("currency")
+        return Quote(
+            price=price,
+            currency=str(currency).upper() if currency else None,
+            change=change,
+            change_percent=change / previous * Decimal("100"),
+            previous_close=previous,
+            as_of=datetime.fromtimestamp(timestamp, UTC),
+            market_state=market_state,
+            source="yahoo",
+        )
+    except YahooError:
+        raise
+    except (
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        InvalidOperation,
+        KeyError,
+        IndexError,
+        TypeError,
+        ValueError,
+        OverflowError,
+    ) as exc:
+        raise YahooError("Yahoo returned an invalid quote response") from exc

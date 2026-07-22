@@ -18,17 +18,23 @@ class DynamoDbSourceGuard:
         source: str,
         *,
         daily_limit: int | None = None,
+        minute_limit: int | None = None,
         failure_threshold: int = 3,
         cooldown: timedelta = timedelta(minutes=15),
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         if daily_limit is not None and daily_limit < 1:
             raise ValueError("daily_limit must be positive")
+        if minute_limit is not None and minute_limit < 1:
+            raise ValueError("minute_limit must be positive")
+        if daily_limit is not None and minute_limit is not None:
+            raise ValueError("only one budget window can be configured")
         if failure_threshold < 1:
             raise ValueError("failure_threshold must be positive")
         self._table = table
         self._source = source
         self._daily_limit = daily_limit
+        self._minute_limit = minute_limit
         self._failure_threshold = failure_threshold
         self._cooldown = cooldown
         self._clock = clock or (lambda: datetime.now(UTC))
@@ -37,18 +43,24 @@ class DynamoDbSourceGuard:
         now = _as_utc(self._clock())
         if self._circuit_is_open(now):
             return False
-        if self._daily_limit is None:
+        if self._daily_limit is None and self._minute_limit is None:
             return True
 
-        day = now.date().isoformat()
-        expires_at = int(
-            datetime.combine(
-                now.date() + timedelta(days=2), time.min, tzinfo=UTC
-            ).timestamp()
-        )
+        if self._minute_limit is not None:
+            window = now.strftime("%Y-%m-%dT%H:%MZ")
+            limit = self._minute_limit
+            expires_at = int((now + timedelta(minutes=2)).timestamp())
+        else:
+            window = now.date().isoformat()
+            limit = self._daily_limit
+            expires_at = int(
+                datetime.combine(
+                    now.date() + timedelta(days=2), time.min, tzinfo=UTC
+                ).timestamp()
+            )
         try:
             self._table.update_item(
-                Key={"PK": f"SRC#{self._source}", "SK": f"BUDGET#{day}"},
+                Key={"PK": f"SRC#{self._source}", "SK": f"BUDGET#{window}"},
                 UpdateExpression="SET expiresAt = :expires ADD calls :one",
                 ConditionExpression=(
                     "attribute_not_exists(calls) OR calls < :limit"
@@ -56,7 +68,7 @@ class DynamoDbSourceGuard:
                 ExpressionAttributeValues={
                     ":expires": expires_at,
                     ":one": 1,
-                    ":limit": self._daily_limit,
+                    ":limit": limit,
                 },
             )
             return True

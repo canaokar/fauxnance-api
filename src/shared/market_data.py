@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
@@ -60,3 +60,15 @@ class SymbolMetadata:
     currency: str
     active: bool = True
     adapter_hints: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class Quote:
+    price: Decimal
+    currency: str | None
+    change: Decimal | None
+    change_percent: Decimal | None
+    previous_close: Decimal | None
+    as_of: datetime
+    market_state: str
+    source: str
