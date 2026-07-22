@@ -3,7 +3,7 @@ from decimal import Decimal
 import unittest
 
 from src.api.quotes import QuoteResolver, QuoteUnavailable
-from src.shared.market_data import Quote
+from src.shared.market_data import Candle, Quote
 
 
 NOW = datetime(2026, 7, 21, 16, tzinfo=UTC)
@@ -40,8 +40,9 @@ def cache_item(*, fetched_at=NOW - timedelta(seconds=30)):
 
 
 class Repository:
-    def __init__(self, cached=None):
+    def __init__(self, cached=None, history=None):
         self.cached = cached
+        self.history = history or []
         self.puts = []
 
     def get_quote(self, symbol):
@@ -49,6 +50,9 @@ class Repository:
 
     def put_quote(self, symbol, value, **kwargs):
         self.puts.append((symbol, value, kwargs))
+
+    def get_recent_real_candles(self, symbol, *, before, limit=91):
+        return self.history[-limit:]
 
 
 class Guard:
@@ -139,6 +143,24 @@ class QuoteResolverTests(unittest.TestCase):
             QuoteResolver(repository, Source("yahoo"), Guard(False)).resolve(
                 "AAPL", {"currency": "USD"}, now=NOW
             )
+
+    def test_real_close_anchors_synthetic_quote_after_upstream_exhaustion(self):
+        anchor = Candle(
+            date=NOW.date() - timedelta(days=1),
+            open=Decimal("230"),
+            high=Decimal("234"),
+            low=Decimal("229"),
+            close=Decimal("232.5"),
+            volume=100,
+            source="yahoo",
+        )
+        resolved = QuoteResolver(
+            Repository(history=[anchor]), Source("yahoo"), Guard(False)
+        ).resolve("AAPL", {"currency": "USD", "type": "equity"}, now=NOW)
+
+        self.assertEqual((resolved.source, resolved.stale), ("synthetic", False))
+        self.assertEqual(resolved.quote.previous_close, Decimal("232.5"))
+        self.assertEqual(resolved.quote.source, "synthetic")
 
 
 if __name__ == "__main__":

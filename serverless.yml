@@ -85,6 +85,7 @@ functions:
         - src/__init__.py
         - src/api/**
         - src/adapters/**
+        - src/synthetic/**
         - src/shared/**
     iamRoleStatementsName: ${self:service}-${sls:stage}-api-role
     iamRoleStatements:

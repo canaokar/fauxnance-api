@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any, Mapping
 
-from src.shared.market_data import Quote
+from src.shared.market_data import Candle, Quote
 
 
 class MarketDataRepository:
@@ -83,6 +84,49 @@ class MarketDataRepository:
                 "expiresAt": int(expires_at.timestamp()),
             }
         )
+
+    def get_recent_real_candles(
+        self, symbol: str, *, before: date, limit: int = 91
+    ) -> list[Candle]:
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        values = {":pk": f"SYM#{symbol}", ":prefix": "EOD#"}
+        found: list[Candle] = []
+        cursor: Mapping[str, Any] | None = None
+        while len(found) < limit:
+            request: dict[str, Any] = {
+                "KeyConditionExpression": "PK = :pk AND begins_with(SK, :prefix)",
+                "ExpressionAttributeValues": values,
+                "ScanIndexForward": False,
+                "ConsistentRead": False,
+            }
+            if cursor is not None:
+                request["ExclusiveStartKey"] = cursor
+            response = self._table.query(**request)
+            for item in response.get("Items", []):
+                for row in reversed(item.get("candles", [])):
+                    day = date.fromisoformat(str(row["d"]))
+                    if day > before:
+                        continue
+                    found.append(
+                        Candle(
+                            date=day,
+                            open=Decimal(str(row["o"])),
+                            high=Decimal(str(row["h"])),
+                            low=Decimal(str(row["l"])),
+                            close=Decimal(str(row["c"])),
+                            volume=int(row["v"]) if row.get("v") is not None else None,
+                            source=str(row.get("src", "stored")),
+                        )
+                    )
+                    if len(found) == limit:
+                        break
+                if len(found) == limit:
+                    break
+            cursor = response.get("LastEvaluatedKey")
+            if not cursor:
+                break
+        return sorted(found, key=lambda candle: candle.date)
 
 
 class IdentityRepository:

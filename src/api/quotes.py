@@ -37,6 +37,10 @@ class QuoteRepository(Protocol):
         expires_at: datetime,
     ) -> None: ...
 
+    def get_recent_real_candles(
+        self, symbol: str, *, before: Any, limit: int = 91
+    ) -> list[Any]: ...
+
 
 class QuoteUnavailable(Exception):
     """Raised when no fresh, upstream, or stale quote can be served."""
@@ -124,6 +128,25 @@ class QuoteResolver:
                 quote=_with_currency(quote, metadata),
                 source="cache",
                 stale=True,
+            )
+        history = self._repository.get_recent_real_candles(
+            symbol, before=now.date(), limit=91
+        )
+        if history:
+            from src.synthetic.generator import synthetic_quote
+
+            generated = synthetic_quote(
+                symbol,
+                str(metadata.get("type", "equity")),
+                str(metadata.get("currency")) if metadata.get("currency") else None,
+                history[-1],
+                now=now,
+                history=history,
+            )
+            return ResolvedQuote(
+                quote=generated,
+                source="synthetic",
+                stale=False,
             )
         detail = "; ".join(failures) or "no quote sources configured"
         raise QuoteUnavailable(detail)

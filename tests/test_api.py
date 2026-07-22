@@ -6,7 +6,7 @@ import unittest
 from src.api.handler import ApiService, lambda_handler
 from src.api.quotes import QuoteUnavailable, ResolvedQuote
 from src.api.repository import IdentityRepository, MarketDataRepository
-from src.shared.market_data import Quote
+from src.shared.market_data import Candle, Quote
 from src.shared.quota import QuotaExceeded, Usage
 
 
@@ -39,6 +39,26 @@ class FakeDataRepository:
     def get_actions(self, symbol):
         self.calls.append(("actions", symbol))
         return self.actions
+
+    def get_recent_real_candles(self, symbol, *, before, limit=91):
+        self.calls.append(("recent", symbol, before, limit))
+        found = []
+        for chunk in self.chunks:
+            for row in chunk.get("candles", []):
+                day = date.fromisoformat(row["d"])
+                if day <= before:
+                    found.append(
+                        Candle(
+                            date=day,
+                            open=Decimal(str(row["o"])),
+                            high=Decimal(str(row["h"])),
+                            low=Decimal(str(row["l"])),
+                            close=Decimal(str(row["c"])),
+                            volume=int(row["v"]) if row.get("v") is not None else None,
+                            source=str(row.get("src", "yahoo")),
+                        )
+                    )
+        return sorted(found, key=lambda candle: candle.date)[-limit:]
 
     def get_market_status(self, market):
         self.calls.append(("market", market))
@@ -301,6 +321,39 @@ class PublicApiTests(unittest.TestCase):
                 )
                 self.assertEqual(response["statusCode"], 400)
                 self.assertEqual(decoded(response)["error"]["code"], code)
+
+    def test_candles_fill_trailing_weekday_gaps_without_persisting(self):
+        self.data.chunks = [
+            {
+                "candles": [
+                    {
+                        "d": "2026-07-20",
+                        "o": Decimal("230"),
+                        "h": Decimal("234"),
+                        "l": Decimal("229"),
+                        "c": Decimal("232.5"),
+                        "v": 100,
+                        "src": "yahoo",
+                    }
+                ]
+            }
+        ]
+        response = self.invoke(
+            event(
+                "/v1/candles/AAPL",
+                symbol="AAPL",
+                query={"from": "2026-07-20", "to": "2026-07-21"},
+            )
+        )
+
+        body = decoded(response)
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["meta"]["source"], "mixed")
+        self.assertEqual(
+            [row["synthetic"] for row in body["data"]["candles"]],
+            [False, True],
+        )
+        self.assertIsNone(body["data"]["candles"][1]["volume"])
 
     def test_exhausted_quota_returns_retry_after_without_data_reads(self):
         self.quota.error = QuotaExceeded(

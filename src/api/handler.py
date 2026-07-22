@@ -12,6 +12,7 @@ from typing import Any, Callable, Mapping
 from src.api.repository import IdentityRepository, MarketDataRepository
 from src.api.quotes import QuoteResolver, QuoteUnavailable, quote_data
 from src.shared.auth import AuthContext, parse_authorizer_context
+from src.shared.market_data import Candle
 from src.shared.quota import QuotaExceeded, QuotaService, Usage
 from src.shared.symbols import canonical_symbol
 
@@ -93,13 +94,16 @@ class ApiService:
                 return _success(data, now=now, symbol=symbol, source="stored")
             if path.startswith("/v1/candles/"):
                 symbol = _path_symbol(event, path, "/v1/candles/")
-                data, as_of = self._candles(symbol, _query(event), now.date())
+                data, as_of, source, extra_meta = self._candles(
+                    symbol, _query(event), now.date()
+                )
                 return _success(
                     data,
                     now=now,
                     symbol=symbol,
-                    source="stored",
+                    source=source,
                     as_of=as_of,
+                    extra_meta=extra_meta,
                 )
             raise ApiError(404, "NOT_FOUND", "Route was not found.")
         except QuotaExceeded as exc:
@@ -219,7 +223,7 @@ class ApiService:
 
     def _candles(
         self, symbol: str, query: Mapping[str, str], today: date
-    ) -> tuple[dict[str, Any], str | None]:
+    ) -> tuple[dict[str, Any], str | None, str, dict[str, Any]]:
         item = self._data.get_symbol(symbol)
         if not item or item.get("active") is False:
             raise ApiError(404, "SYMBOL_NOT_FOUND", "Symbol was not recognized.")
@@ -241,26 +245,73 @@ class ApiService:
             rows.extend(chunk.get("candles", []))
 
         actions = self._data.get_actions(symbol)
-        candles = []
+        real_candles: list[Candle] = []
         for row in rows:
             candle_date = _parse_stored_date(row.get("d"))
             if not start <= candle_date <= end:
                 continue
-            close = _decimal(row.get("c"), "close")
+            real_candles.append(
+                Candle(
+                    date=candle_date,
+                    open=_decimal(row.get("o"), "open"),
+                    high=_decimal(row.get("h"), "high"),
+                    low=_decimal(row.get("l"), "low"),
+                    close=_decimal(row.get("c"), "close"),
+                    volume=_volume(row.get("v")),
+                    source=str(row.get("src", "stored")),
+                )
+            )
+        real_candles.sort(key=lambda candle: candle.date)
+        history = self._data.get_recent_real_candles(symbol, before=end, limit=91)
+        coverage = item.get("coverage") or {}
+        available_from = coverage.get("eodFrom") or item.get("eodFrom")
+        if not real_candles and not history:
+            if available_from:
+                return (
+                    {
+                        "symbol": symbol,
+                        "interval": "1d",
+                        "currency": item.get("currency"),
+                        "candles": [],
+                    },
+                    None,
+                    "stored",
+                    {"partial": True, "availableFrom": str(available_from)},
+                )
+            raise ApiError(
+                202,
+                "BACKFILL_IN_PROGRESS",
+                "Historical data is being prepared; retry later.",
+                headers={"Retry-After": "60"},
+            )
+
+        from src.synthetic.generator import fill_candle_gaps
+
+        series = fill_candle_gaps(
+            symbol,
+            str(item.get("type", "equity")),
+            start,
+            end,
+            real_candles,
+            history=history,
+        )
+        candles = []
+        for candle in series:
+            close = candle.close
             factor = Decimal("1")
             for action in actions:
-                if _parse_stored_date(action.get("date")) > candle_date:
+                if _parse_stored_date(action.get("date")) > candle.date:
                     factor *= _decimal(action.get("factor"), "action factor")
             candles.append(
                 {
-                    "date": candle_date.isoformat(),
-                    "open": _number(_decimal(row.get("o"), "open")),
-                    "high": _number(_decimal(row.get("h"), "high")),
-                    "low": _number(_decimal(row.get("l"), "low")),
+                    "date": candle.date.isoformat(),
+                    "open": _number(candle.open),
+                    "high": _number(candle.high),
+                    "low": _number(candle.low),
                     "close": _number(close),
                     "adjclose": _number(close * factor),
-                    "volume": _volume(row.get("v")),
-                    "synthetic": False,
+                    "volume": candle.volume,
+                    "synthetic": candle.source == "synthetic",
                 }
             )
         candles.sort(key=lambda candle: candle["date"])
@@ -268,6 +319,16 @@ class ApiService:
             raise ApiError(400, "RANGE_TOO_LARGE", "Candle response is too large.")
 
         as_of = f"{candles[-1]['date']}T00:00:00Z" if candles else None
+        synthetic_count = sum(1 for candle in candles if candle["synthetic"])
+        if synthetic_count == 0:
+            source = "stored"
+        elif synthetic_count == len(candles):
+            source = "synthetic"
+        else:
+            source = "mixed"
+        extra_meta: dict[str, Any] = {}
+        if available_from and start < _parse_stored_date(available_from):
+            extra_meta = {"partial": True, "availableFrom": str(available_from)}
         return (
             {
                 "symbol": symbol,
@@ -276,6 +337,8 @@ class ApiService:
                 "candles": candles,
             },
             as_of,
+            source,
+            extra_meta,
         )
 
 
@@ -435,6 +498,7 @@ def _success(
     source: str | None = None,
     stale: bool | None = None,
     as_of: str | None = None,
+    extra_meta: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     meta: dict[str, Any] = {
         "asOf": as_of or _timestamp(now),
@@ -446,6 +510,7 @@ def _success(
         meta["source"] = source
     if stale is not None:
         meta["stale"] = stale
+    meta.update(extra_meta or {})
     return _response(200, {"data": data, "meta": meta})
 
 
