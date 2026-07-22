@@ -152,12 +152,11 @@ class YahooAdapterTests(unittest.TestCase):
                 Capability.QUOTE_IN,
                 Capability.QUOTE_FX,
                 Capability.QUOTE_CRYPTO,
+                Capability.DISCOVERY,
             },
         )
         with self.assertRaises(CapabilityUnavailable):
             adapter.vendor_symbol("bad symbol")
-        with self.assertRaises(CapabilityUnavailable):
-            adapter.discover("AAPL")
 
     def test_normalizes_quote_metadata_for_every_market(self):
         chart = {
@@ -186,6 +185,53 @@ class YahooAdapterTests(unittest.TestCase):
         self.assertEqual(quote_value.change, Decimal("0.21"))
         self.assertEqual(quote_value.market_state, "open")
         self.assertIn("range=1d", calls[0][0])
+
+    def test_discovers_exact_symbol_metadata_without_fuzzy_matching(self):
+        chart = {
+            "chart": {
+                "result": [
+                    {
+                        "meta": {
+                            "symbol": "INFY.NS",
+                            "longName": "Infosys Limited",
+                            "instrumentType": "EQUITY",
+                            "exchangeName": "NSI",
+                            "currency": "INR",
+                        }
+                    }
+                ],
+                "error": None,
+            }
+        }
+        metadata = YahooAdapter(
+            fetch=lambda _url, _timeout: json.dumps(chart).encode()
+        ).discover("infy.ns")
+
+        self.assertEqual(metadata.symbol, "INFY.NS")
+        self.assertEqual(metadata.name, "Infosys Limited")
+        self.assertEqual(metadata.exchange, "NSE")
+        self.assertEqual(metadata.currency, "INR")
+        self.assertEqual(metadata.adapter_hints, {"yahooSymbol": "INFY.NS"})
+
+    def test_discovery_returns_none_for_semantic_not_found_or_symbol_mismatch(self):
+        not_found = {
+            "chart": {
+                "result": None,
+                "error": {"code": "Not Found", "description": "No data found"},
+            }
+        }
+        mismatch = {
+            "chart": {
+                "result": [{"meta": {"symbol": "MSFT"}}],
+                "error": None,
+            }
+        }
+        self.assertIsNone(
+            YahooAdapter(fetch=lambda *_args: json.dumps(not_found).encode()).discover("AAPL")
+        )
+        self.assertIsNone(
+            YahooAdapter(fetch=lambda *_args: json.dumps(mismatch).encode()).discover("AAPL")
+        )
 
     def test_provider_error_and_malformed_payload_are_explicit(self):
         provider_error = {

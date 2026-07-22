@@ -18,8 +18,9 @@ from src.shared.market_data import (
     CorporateAction,
     EodResult,
     Quote,
+    SymbolMetadata,
 )
-from src.shared.symbols import parse_symbol
+from src.shared.symbols import SymbolInfo, parse_symbol
 
 
 class YahooError(Exception):
@@ -47,6 +48,7 @@ class YahooAdapter:
             Capability.QUOTE_IN,
             Capability.QUOTE_FX,
             Capability.QUOTE_CRYPTO,
+            Capability.DISCOVERY,
         }
 
     def get_eod(self, symbol: str, start: date, end: date) -> EodResult:
@@ -79,8 +81,23 @@ class YahooAdapter:
         )
         return _parse_quote(body)
 
-    def discover(self, _symbol: str) -> None:
-        raise CapabilityUnavailable("Yahoo discovery support is not part of Phase 1")
+    def discover(self, symbol: str) -> SymbolMetadata | None:
+        try:
+            info = parse_symbol(symbol)
+        except ValueError as exc:
+            raise CapabilityUnavailable("Yahoo does not support this symbol") from exc
+        vendor_symbol = quote(info.yahoo_symbol, safe="-.")
+        params = urlencode({"range": "5d", "interval": "1d"})
+        try:
+            body = self._fetch(
+                f"{self.base_url}/{vendor_symbol}?{params}", self._timeout
+            )
+        except HTTPError as exc:
+            if exc.code in {400, 404}:
+                exc.close()
+                return None
+            raise
+        return _parse_discovery(body, info)
 
     @staticmethod
     def vendor_symbol(symbol: str) -> str:
@@ -323,3 +340,51 @@ def _parse_quote(payload: bytes) -> Quote:
         OverflowError,
     ) as exc:
         raise YahooError("Yahoo returned an invalid quote response") from exc
+
+
+def _parse_discovery(payload: bytes, info: SymbolInfo) -> SymbolMetadata | None:
+    try:
+        document = json.loads(payload.decode("utf-8"))
+        chart = document["chart"]
+        if chart.get("error"):
+            code = str(chart["error"].get("code", "")).lower()
+            if code in {"not found", "bad request"}:
+                return None
+            raise YahooError(
+                str(chart["error"].get("description") or "Yahoo chart error")
+            )
+        meta = chart["result"][0]["meta"]
+        if str(meta.get("symbol", "")).upper() != info.yahoo_symbol.upper():
+            return None
+        instrument = str(meta.get("instrumentType", "")).upper()
+        asset_type = {
+            "ETF": "etf",
+            "EQUITY": "equity",
+            "MUTUALFUND": "etf",
+            "CURRENCY": "fx",
+            "CRYPTOCURRENCY": "crypto",
+        }.get(instrument, info.asset_type)
+        name = meta.get("longName") or meta.get("shortName") or info.symbol
+        exchange = info.exchange
+        if info.market.value == "US":
+            exchange = str(meta.get("fullExchangeName") or meta.get("exchangeName") or "US")
+        currency = str(meta.get("currency") or info.currency).upper()
+        return SymbolMetadata(
+            symbol=info.symbol,
+            name=str(name),
+            type=asset_type,
+            exchange=exchange,
+            currency=currency,
+            adapter_hints={"yahooSymbol": info.yahoo_symbol},
+        )
+    except YahooError:
+        raise
+    except (
+        AttributeError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        KeyError,
+        IndexError,
+        TypeError,
+    ) as exc:
+        raise YahooError("Yahoo returned invalid discovery metadata") from exc
