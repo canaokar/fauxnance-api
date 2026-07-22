@@ -122,4 +122,5 @@ The CSV output (`label,key`) is what gets mail-merged to students on day one.
   Lambda lifetime, never logged.
 - Structured logs redact `X-Api-Key` and anything matching `fnx_[a-z]+_\w+`.
 - CloudWatch alarms: authorizer 5xx, sustained 429 spikes (misconfigured student
-  loop), DLQ depth > 0, and an AWS Budget alert at $5/month as the final tripwire.
+  loop), and DLQ depth > 0. An AWS Budget alert at $5/month is deferred to the
+  v1.x backlog — per-key quotas and gateway throttling already bound the bill.

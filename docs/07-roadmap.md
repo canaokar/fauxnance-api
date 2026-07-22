@@ -65,7 +65,7 @@ continues after code completion.
 - Student-facing docs: quickstart (curl/Python/JS/Excel), error-handling guide,
   fair-use page. This is also capstone collateral — students read these docs as
   an example of what API documentation should look like.
-- Observability pass: dashboard, alarm runbook, budget alert.
+- Observability pass: dashboard, alarm runbook.
 - Dry run with a pilot group before the first real cohort.
 
 **Exit criterion:** issue 50 keys for a real cohort in < 10 minutes, survive week one without operator intervention.
@@ -79,6 +79,8 @@ continues after code completion.
   the raw split/dividend events already stored in `ADJ` items.
 - Company fundamentals (profile, ratios) — most-requested v2 data type.
 - GitHub Actions plan/apply pipeline.
+- AWS Budget alert ($5/month tripwire) — deferred; per-key quotas and gateway
+  throttling already bound the bill, so this is a belt-and-suspenders extra.
 
 ## v2 — Simulation module (deliberately deferred)
 
