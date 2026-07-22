@@ -12,6 +12,9 @@ dependencies = [
   "aws-lambda-powertools>=3,<4",
 ]
 
+[project.scripts]
+fnx = "cli.main:main"
+
 [project.optional-dependencies]
 dev = [
   "boto3>=1.35,<2",
@@ -25,4 +28,3 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["src*", "cli*"]
-
