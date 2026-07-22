@@ -12,10 +12,11 @@ class RepositoryConflict(RuntimeError):
 
 
 class DynamoAdminRepository:
-    def __init__(self, table: Any, dynamodb: Any) -> None:
+    def __init__(self, table: Any, dynamodb: Any, data_table: Any | None = None) -> None:
         self._table = table
         self._dynamodb = dynamodb
         self._client = dynamodb.meta.client
+        self._data_table = data_table
 
     def create_cohort(self, item: Mapping[str, Any]) -> None:
         projection = _cohort_projection(item)
@@ -249,6 +250,89 @@ class DynamoAdminRepository:
                 raise RepositoryConflict("key changed during revocation") from exc
             raise
 
+    def seed_symbols(self, symbols: Sequence[Mapping[str, Any]]) -> None:
+        if self._data_table is None:
+            raise RuntimeError("data table is required for symbol registration")
+        from src.ingest.repository import DynamoDBIngestRepository
+
+        repository = DynamoDBIngestRepository(self._data_table)
+        for metadata in symbols:
+            repository.seed_symbol(metadata, market=str(metadata["market"]))
+
+    def get_symbol(self, symbol: str) -> Mapping[str, Any] | None:
+        if self._data_table is None:
+            raise RuntimeError("data table is required for symbol reads")
+        return self._data_table.get_item(
+            Key={"PK": f"SYM#{symbol}", "SK": "META"},
+            ConsistentRead=True,
+        ).get("Item")
+
+    def create_backfill_job(self, item: Mapping[str, Any]) -> None:
+        try:
+            self._transact(
+                [
+                    _put(self._table.name, dict(item), conditional=True),
+                    _put(
+                        self._table.name,
+                        {
+                            "PK": "BACKFILL_JOBS",
+                            "SK": str(item["jobId"]),
+                            "jobId": item["jobId"],
+                            "createdAt": item["createdAt"],
+                        },
+                        conditional=True,
+                    ),
+                ]
+            )
+        except Exception as exc:
+            if _is_transaction_cancelled(exc):
+                raise RepositoryConflict("backfill job already exists") from exc
+            raise
+
+    def get_backfill_job(self, job_id: str) -> Mapping[str, Any] | None:
+        return self._table.get_item(
+            Key={"PK": f"JOB#{job_id}", "SK": "META"},
+            ConsistentRead=True,
+        ).get("Item")
+
+    def record_backfill_dispatch_error(
+        self, job_id: str, *, error: str, updated_at: str
+    ) -> None:
+        try:
+            self._table.update_item(
+                Key={"PK": f"JOB#{job_id}", "SK": "META"},
+                UpdateExpression=(
+                    "SET dispatchError = :error, dispatchErrorAt = :now, "
+                    "updatedAt = :now"
+                ),
+                ConditionExpression="#state = :preparing",
+                ExpressionAttributeNames={"#state": "state"},
+                ExpressionAttributeValues={
+                    ":preparing": "preparing",
+                    ":error": error,
+                    ":now": updated_at,
+                },
+            )
+        except Exception as exc:
+            if not _is_conditional_failure(exc):
+                raise
+
+    def backfill_failures(
+        self, job_id: str, *, limit: int
+    ) -> tuple[list[Mapping[str, Any]], bool]:
+        response = self._table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
+            ExpressionAttributeValues={
+                ":pk": f"JOB#{job_id}",
+                ":prefix": "FAIL#",
+            },
+            ConsistentRead=True,
+            Limit=limit + 1,
+        )
+        items = list(response.get("Items", []))
+        truncated = len(items) > limit or bool(response.get("LastEvaluatedKey"))
+        return items[:limit], truncated
+
     def _transact(self, items: Sequence[Mapping[str, Any]]) -> None:
         self._client.transact_write_items(TransactItems=list(items))
 
@@ -289,3 +373,8 @@ def _serialize(item: Mapping[str, Any]) -> dict[str, Any]:
 def _is_transaction_cancelled(exc: Exception) -> bool:
     response = getattr(exc, "response", {})
     return response.get("Error", {}).get("Code") == "TransactionCanceledException"
+
+
+def _is_conditional_failure(exc: Exception) -> bool:
+    response = getattr(exc, "response", {})
+    return response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"

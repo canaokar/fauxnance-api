@@ -16,12 +16,28 @@ from uuid import uuid4
 
 from src.admin.repository import DynamoAdminRepository, RepositoryConflict
 from src.shared.auth import AuthContext, is_expired, parse_authorizer_context
+from src.shared.symbols import Market, canonical_symbol, parse_symbol
 
 
 DISCLAIMER = "Educational data. Not for investment use."
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 _UNSAFE_SPREADSHEET_PREFIXES = ("=", "+", "-", "@")
 _BASE62 = string.ascii_letters + string.digits
+_UNIVERSES = frozenset(
+    {
+        "us-phase2-v1",
+        "india-phase3-v1",
+        "fx-phase3-v1",
+        "crypto-phase3-v1",
+    }
+)
+_UNIVERSE_SIZES = {
+    "us-phase2-v1": 515,
+    "india-phase3-v1": 30,
+    "fx-phase3-v1": 12,
+    "crypto-phase3-v1": 12,
+}
+_MAX_BACKFILL_WORK = 8_000
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -35,6 +51,31 @@ class AdminRepository(Protocol):
     def issue_keys(self, cohort: Mapping[str, Any], records: Sequence[Mapping[str, Any]]) -> None: ...
     def get_key_lookup(self, key_id: str) -> Mapping[str, Any] | None: ...
     def revoke_key(self, lookup: Mapping[str, Any], *, revoked_at: str) -> None: ...
+    def seed_symbols(self, symbols: Sequence[Mapping[str, Any]]) -> None: ...
+    def get_symbol(self, symbol: str) -> Mapping[str, Any] | None: ...
+    def create_backfill_job(self, item: Mapping[str, Any]) -> None: ...
+    def get_backfill_job(self, job_id: str) -> Mapping[str, Any] | None: ...
+    def record_backfill_dispatch_error(self, job_id: str, *, error: str, updated_at: str) -> None: ...
+    def backfill_failures(self, job_id: str, *, limit: int) -> tuple[list[Mapping[str, Any]], bool]: ...
+
+
+class CoordinatorInvoker(Protocol):
+    def invoke(self, job_id: str) -> None: ...
+
+
+class LambdaCoordinatorInvoker:
+    def __init__(self, client: Any, function_name: str) -> None:
+        self._client = client
+        self._function_name = function_name
+
+    def invoke(self, job_id: str) -> None:
+        response = self._client.invoke(
+            FunctionName=self._function_name,
+            InvocationType="Event",
+            Payload=json.dumps({"jobId": job_id}, separators=(",", ":")).encode(),
+        )
+        if int(response.get("StatusCode", 0)) != 202:
+            raise RuntimeError("backfill coordinator did not accept the job")
 
 
 class AdminError(Exception):
@@ -54,12 +95,14 @@ class AdminService:
         clock: Callable[[], datetime] | None = None,
         identifier: Callable[[str], str] | None = None,
         plaintext_key: Callable[[], str] | None = None,
+        coordinator: CoordinatorInvoker | None = None,
     ) -> None:
         self._repository = repository
         self._stage = stage
         self._clock = clock or (lambda: datetime.now(UTC))
         self._identifier = identifier or (lambda prefix: f"{prefix}_{uuid4().hex[:16]}")
         self._plaintext_key = plaintext_key or self._generate_key
+        self._coordinator = coordinator
 
     def handle(self, event: Mapping[str, Any]) -> dict[str, Any]:
         now = _as_utc(self._clock())
@@ -89,6 +132,22 @@ class AdminService:
             if path.startswith("/v1/admin/keys/") and method == "DELETE":
                 key_id = _path_id(event, path, "/v1/admin/keys/", "keyId")
                 return _success(self._revoke_key(key_id, now), now)
+            if path == "/v1/admin/symbols" and method == "POST":
+                return _success(
+                    self._register_symbols(_body(event)), now, status=201
+                )
+            if path == "/v1/admin/ingest/backfill" and method == "POST":
+                return _success(
+                    self._start_backfill(_body(event), now), now, status=202
+                )
+            if (
+                path.startswith("/v1/admin/ingest/jobs/")
+                and method == "GET"
+            ):
+                job_id = _path_id(
+                    event, path, "/v1/admin/ingest/jobs/", "jobId"
+                )
+                return _success(self._backfill_status(job_id), now)
             raise AdminError(404, "NOT_FOUND", "Route was not found.")
         except AdminError as exc:
             return _error(exc.status, exc.code, exc.message)
@@ -216,6 +275,179 @@ class AdminService:
         self._repository.revoke_key({**lookup, "keyId": key_id}, revoked_at=_timestamp(now))
         return {"keyId": key_id, "status": "revoked", "revokedAt": _timestamp(now)}
 
+    def _register_symbols(self, body: Mapping[str, Any]) -> dict[str, Any]:
+        _exact_fields(body, {"symbols"})
+        raw_symbols = body["symbols"]
+        if not isinstance(raw_symbols, list) or not 1 <= len(raw_symbols) <= 50:
+            raise AdminError(
+                400,
+                "VALIDATION_ERROR",
+                "symbols must contain 1 to 50 metadata objects.",
+            )
+        normalized = [_symbol_metadata(value) for value in raw_symbols]
+        identities = [str(item["symbol"]) for item in normalized]
+        if len(set(identities)) != len(identities):
+            raise AdminError(400, "VALIDATION_ERROR", "symbols must be unique.")
+        self._repository.seed_symbols(normalized)
+        return {
+            "symbols": [
+                {
+                    key: item[key]
+                    for key in (
+                        "symbol",
+                        "name",
+                        "type",
+                        "exchange",
+                        "currency",
+                        "market",
+                    )
+                }
+                for item in normalized
+            ]
+        }
+
+    def _start_backfill(
+        self, body: Mapping[str, Any], now: datetime
+    ) -> dict[str, Any]:
+        if not set(body).issubset({"universe", "symbols", "from", "to"}):
+            raise AdminError(400, "VALIDATION_ERROR", "Backfill fields are invalid.")
+        if set(body).isdisjoint({"universe", "symbols"}) or (
+            "universe" in body and "symbols" in body
+        ):
+            raise AdminError(
+                400,
+                "VALIDATION_ERROR",
+                "Provide exactly one of universe or symbols.",
+            )
+        if "from" not in body or "to" not in body:
+            raise AdminError(400, "VALIDATION_ERROR", "from and to are required.")
+        start = _date_value(body["from"], "from")
+        end = _date_value(body["to"], "to")
+        if start > end:
+            raise AdminError(400, "VALIDATION_ERROR", "from must not be after to.")
+        if end > now.date():
+            raise AdminError(400, "VALIDATION_ERROR", "to must not be in the future.")
+        if start.year < 1900 or end.year > 2100:
+            raise AdminError(
+                400,
+                "VALIDATION_ERROR",
+                "Backfill dates must be between 1900 and 2100.",
+            )
+
+        params: dict[str, Any] = {
+            "from": start.isoformat(),
+            "to": end.isoformat(),
+        }
+        if "universe" in body:
+            universe = body["universe"]
+            if not isinstance(universe, str) or universe not in _UNIVERSES:
+                raise AdminError(400, "VALIDATION_ERROR", "universe is unsupported.")
+            params["universe"] = universe
+            symbol_count = _UNIVERSE_SIZES[universe]
+        else:
+            raw_symbols = body["symbols"]
+            if not isinstance(raw_symbols, list) or not 1 <= len(raw_symbols) <= 100:
+                raise AdminError(
+                    400,
+                    "VALIDATION_ERROR",
+                    "symbols must contain 1 to 100 canonical symbols.",
+                )
+            try:
+                symbols = [canonical_symbol(value) for value in raw_symbols]
+            except (TypeError, ValueError) as exc:
+                raise AdminError(
+                    400, "VALIDATION_ERROR", "symbols must be canonical symbols."
+                ) from exc
+            if len(set(symbols)) != len(symbols):
+                raise AdminError(400, "VALIDATION_ERROR", "symbols must be unique.")
+            registered = {
+                symbol: self._repository.get_symbol(symbol) for symbol in symbols
+            }
+            missing = [
+                symbol
+                for symbol, metadata in registered.items()
+                if metadata is None or metadata.get("active") is False
+            ]
+            if missing:
+                raise AdminError(
+                    404,
+                    "SYMBOL_NOT_FOUND",
+                    f"Registered symbol was not found: {missing[0]}.",
+                )
+            params["symbols"] = symbols
+            symbol_count = len(symbols)
+
+        year_count = end.year - start.year + 1
+        if symbol_count * year_count > _MAX_BACKFILL_WORK:
+            raise AdminError(
+                400,
+                "VALIDATION_ERROR",
+                f"Backfill cannot exceed {_MAX_BACKFILL_WORK} symbol-year units.",
+            )
+
+        job_id = self._identifier("job")
+        timestamp = _timestamp(now)
+        item = {
+            "PK": f"JOB#{job_id}",
+            "SK": "META",
+            "jobId": job_id,
+            "type": "admin_backfill",
+            "state": "preparing",
+            "params": params,
+            "total": 0,
+            "completed": 0,
+            "failed": 0,
+            "createdAt": timestamp,
+            "updatedAt": timestamp,
+        }
+        self._repository.create_backfill_job(item)
+        if self._coordinator is None:
+            raise RuntimeError("backfill coordinator is unavailable")
+        try:
+            self._coordinator.invoke(job_id)
+        except Exception as exc:
+            self._repository.record_backfill_dispatch_error(
+                job_id,
+                error=type(exc).__name__,
+                updated_at=timestamp,
+            )
+            return {
+                "jobId": job_id,
+                "state": "preparing",
+                "dispatchDeferred": True,
+            }
+        return {"jobId": job_id, "state": "preparing"}
+
+    def _backfill_status(self, job_id: str) -> dict[str, Any]:
+        job = self._repository.get_backfill_job(job_id)
+        if not job or job.get("type") not in {"backfill", "lazy_backfill", "admin_backfill"}:
+            raise AdminError(404, "JOB_NOT_FOUND", "Backfill job was not found.")
+        failed_count = int(job.get("failed", 0))
+        failed_work, truncated = self._repository.backfill_failures(
+            job_id, limit=100
+        )
+        failures = [
+            {
+                "symbol": item.get("symbol"),
+                "year": int(item["year"]),
+                "error": item.get("failure", "INGEST_FAILED"),
+            }
+            for item in failed_work
+        ]
+        done = int(job.get("completed", 0))
+        data = {
+            "jobId": job_id,
+            "state": job.get("state"),
+            "done": done,
+            "failed": failures,
+            "failedCount": failed_count,
+            "failuresTruncated": truncated or failed_count > len(failures),
+            "total": int(job.get("total", 0)),
+        }
+        if job.get("preparationError"):
+            data["preparationError"] = job["preparationError"]
+        return data
+
     def _required_cohort(self, cohort_id: str) -> Mapping[str, Any]:
         item = self._repository.get_cohort(cohort_id)
         if not item:
@@ -264,7 +496,15 @@ def _default_service() -> AdminService:
 
         dynamodb = boto3.resource("dynamodb")
         table = dynamodb.Table(os.environ["CONTROL_TABLE"])
-        _service = AdminService(DynamoAdminRepository(table, dynamodb), stage=os.environ.get("STAGE", "dev"))
+        data_table = dynamodb.Table(os.environ["DATA_TABLE"])
+        coordinator = LambdaCoordinatorInvoker(
+            boto3.client("lambda"), os.environ["BACKFILL_COORDINATOR_FUNCTION"]
+        )
+        _service = AdminService(
+            DynamoAdminRepository(table, dynamodb, data_table),
+            stage=os.environ.get("STAGE", "dev"),
+            coordinator=coordinator,
+        )
     return _service
 
 
@@ -365,6 +605,71 @@ def _expiry(value: object, *, today: date) -> str:
     if expiry < today:
         raise AdminError(400, "VALIDATION_ERROR", "expiresAt must not be in the past.")
     return expiry.isoformat()
+
+
+def _date_value(value: object, field: str) -> date:
+    if not isinstance(value, str):
+        raise AdminError(400, "VALIDATION_ERROR", f"{field} must be a YYYY-MM-DD date.")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise AdminError(
+            400, "VALIDATION_ERROR", f"{field} must be a YYYY-MM-DD date."
+        ) from exc
+
+
+def _symbol_metadata(value: object) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise AdminError(400, "VALIDATION_ERROR", "Each symbol must be an object.")
+    required = {"symbol", "name", "type", "exchange", "currency"}
+    allowed = required | {"adapterHints"}
+    if not required.issubset(value) or not set(value).issubset(allowed):
+        raise AdminError(400, "VALIDATION_ERROR", "Symbol metadata fields are invalid.")
+    try:
+        info = parse_symbol(value["symbol"])
+    except (TypeError, ValueError) as exc:
+        raise AdminError(400, "VALIDATION_ERROR", "symbol is not canonical.") from exc
+    if value["symbol"] != info.symbol:
+        raise AdminError(400, "VALIDATION_ERROR", "symbol must be uppercase canonical form.")
+    name = value["name"]
+    asset_type = value["type"]
+    exchange = value["exchange"]
+    currency = value["currency"]
+    if not isinstance(name, str) or not 1 <= len(name.strip()) <= 200:
+        raise AdminError(400, "VALIDATION_ERROR", "symbol name must contain 1 to 200 characters.")
+    allowed_types = {"equity", "etf"} if info.market == Market.US else {info.asset_type}
+    if asset_type not in allowed_types:
+        raise AdminError(400, "VALIDATION_ERROR", "symbol type does not match its market.")
+    if not isinstance(exchange, str) or not 1 <= len(exchange.strip()) <= 32:
+        raise AdminError(400, "VALIDATION_ERROR", "exchange is invalid.")
+    if info.market != Market.US and exchange != info.exchange:
+        raise AdminError(400, "VALIDATION_ERROR", "exchange does not match the symbol.")
+    if currency != info.currency:
+        raise AdminError(400, "VALIDATION_ERROR", "currency does not match the symbol.")
+    metadata: dict[str, Any] = {
+        "symbol": info.symbol,
+        "name": name.strip(),
+        "type": asset_type,
+        "exchange": exchange.strip(),
+        "currency": currency,
+        "market": info.market.value,
+    }
+    hints = value.get("adapterHints")
+    if hints is not None:
+        if (
+            not isinstance(hints, Mapping)
+            or len(hints) > 20
+            or not all(
+                isinstance(key, str)
+                and 1 <= len(key) <= 80
+                and isinstance(item, str)
+                and 1 <= len(item) <= 200
+                for key, item in hints.items()
+            )
+        ):
+            raise AdminError(400, "VALIDATION_ERROR", "adapterHints must be a bounded string map.")
+        metadata["adapterHints"] = dict(hints)
+    return metadata
 
 
 def _limit(value: str | None, *, default: int, maximum: int) -> int:

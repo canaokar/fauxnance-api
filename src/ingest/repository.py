@@ -129,6 +129,7 @@ class DynamoDBIngestRepository:
 
         common = _symbol_metadata(metadata, market)
         symbol = common["symbol"]
+        existing = False
         try:
             self._data.put_item(
                 Item={
@@ -142,8 +143,12 @@ class DynamoDBIngestRepository:
         except Exception as exc:
             if not _is_conditional_failure(exc):
                 raise
+            existing = True
             self._refresh_symbol_metadata(common)
-        self._data.put_item(Item={"PK": "SYMBOLS", "SK": symbol, **common})
+        if existing:
+            self._refresh_symbol_projection(common)
+        else:
+            self._data.put_item(Item={"PK": "SYMBOLS", "SK": symbol, **common})
 
     def advance_symbol_coverage(
         self, symbol: str, first_date: date, last_date: date
@@ -248,11 +253,12 @@ class DynamoDBIngestRepository:
                             "ConditionExpression": (
                                 "attribute_exists(PK) AND "
                                 "(attribute_not_exists(#state) OR "
-                                "#state <> :completed)"
+                                "(#state <> :completed AND #state <> :failed))"
                             ),
                             "ExpressionAttributeNames": {"#state": "state"},
                             "ExpressionAttributeValues": {
                                 ":completed": "completed",
+                                ":failed": "failed",
                                 ":now": timestamp,
                             },
                         }
@@ -282,8 +288,11 @@ class DynamoDBIngestRepository:
                 item = self._control.get_item(
                     Key=work_key, ConsistentRead=True
                 ).get("Item")
-                if item and item.get("state") == "completed":
-                    self._complete_job_if_done(job_id, timestamp)
+                if item and item.get("state") in {"completed", "failed"}:
+                    if item.get("state") == "completed":
+                        self._complete_job_if_done(job_id, timestamp)
+                    else:
+                        self._fail_job_if_done(job_id, timestamp)
                     return False
                 if (
                     _is_transaction_conflict(exc)
@@ -302,8 +311,12 @@ class DynamoDBIngestRepository:
         if not item:
             return
         completed = int(item.get("completed", 0))
+        failed = int(item.get("failed", 0))
         total = int(item.get("total", 0))
-        if total < 1 or completed < total:
+        if total < 1 or completed + failed < total:
+            return
+        if failed > 0:
+            self._fail_job_if_done(job_id, timestamp)
             return
         try:
             self._control.update_item(
@@ -323,6 +336,136 @@ class DynamoDBIngestRepository:
                 ExpressionAttributeValues={
                     ":completedState": "completed",
                     ":total": total,
+                    ":now": timestamp,
+                },
+            )
+        except Exception as exc:
+            if not _is_conditional_failure(exc):
+                raise
+
+    def fail_backfill_work(
+        self,
+        job_id: str,
+        symbol: str,
+        year: int,
+        *,
+        failure: str,
+        now: datetime | None = None,
+    ) -> bool:
+        """Atomically fail one exhausted work item and its parent job exactly once."""
+
+        if self._control is None:
+            raise RuntimeError("control table is required for backfill failure")
+        client = self._transaction_client or self._control.meta.client
+        timestamp = _utc_timestamp(now)
+        work_key = {"PK": f"JOB#{job_id}", "SK": f"WORK#{symbol}#YEAR#{year}"}
+        job_key = {"PK": f"JOB#{job_id}", "SK": "META"}
+        failure_key = {
+            "PK": f"JOB#{job_id}",
+            "SK": f"FAIL#{symbol}#YEAR#{year}",
+        }
+        try:
+            client.transact_write_items(
+                TransactItems=[
+                    {
+                        "Update": {
+                            "TableName": self._control.name,
+                            "Key": work_key,
+                            "UpdateExpression": (
+                                "SET #state = :failedState, failure = :failure, "
+                                "failedAt = :now"
+                            ),
+                            "ConditionExpression": (
+                                "attribute_exists(PK) AND "
+                                "(attribute_not_exists(#state) OR "
+                                "(#state <> :completedState AND "
+                                "#state <> :failedState))"
+                            ),
+                            "ExpressionAttributeNames": {"#state": "state"},
+                            "ExpressionAttributeValues": {
+                                ":failedState": "failed",
+                                ":completedState": "completed",
+                                ":failure": failure,
+                                ":now": timestamp,
+                            },
+                        }
+                    },
+                    {
+                        "Update": {
+                            "TableName": self._control.name,
+                            "Key": job_key,
+                            "UpdateExpression": (
+                                "SET updatedAt = :now ADD #failed :one"
+                            ),
+                            "ConditionExpression": "attribute_exists(PK)",
+                            "ExpressionAttributeNames": {"#failed": "failed"},
+                            "ExpressionAttributeValues": {
+                                ":now": timestamp,
+                                ":one": 1,
+                            },
+                        }
+                    },
+                    {
+                        "Put": {
+                            "TableName": self._control.name,
+                            "Item": {
+                                **failure_key,
+                                "symbol": symbol,
+                                "year": year,
+                                "failure": failure,
+                                "failedAt": timestamp,
+                            },
+                            "ConditionExpression": "attribute_not_exists(PK)",
+                        }
+                    },
+                ]
+            )
+        except Exception as exc:
+            if not _is_transaction_cancelled(exc):
+                raise
+            item = self._control.get_item(
+                Key=work_key, ConsistentRead=True
+            ).get("Item")
+            if item and item.get("state") in {"failed", "completed"}:
+                self._fail_job_if_done(job_id, timestamp)
+                return False
+            raise
+        self._fail_job_if_done(job_id, timestamp)
+        return True
+
+    def _fail_job_if_done(self, job_id: str, timestamp: str) -> None:
+        if self._control is None:  # pragma: no cover - guarded by caller
+            return
+        key = {"PK": f"JOB#{job_id}", "SK": "META"}
+        item = self._control.get_item(Key=key, ConsistentRead=True).get("Item")
+        if not item:
+            return
+        completed = int(item.get("completed", 0))
+        failed = int(item.get("failed", 0))
+        total = int(item.get("total", 0))
+        if total < 1 or completed + failed < total:
+            return
+        try:
+            self._control.update_item(
+                Key=key,
+                UpdateExpression=(
+                    "SET #state = :failedState, failedAt = :now, updatedAt = :now"
+                ),
+                ConditionExpression=(
+                    "#completed = :completed AND #failed = :failed AND "
+                    "#failed > :zero AND #state <> :completedState"
+                ),
+                ExpressionAttributeNames={
+                    "#state": "state",
+                    "#completed": "completed",
+                    "#failed": "failed",
+                },
+                ExpressionAttributeValues={
+                    ":failedState": "failed",
+                    ":completedState": "completed",
+                    ":completed": completed,
+                    ":failed": failed,
+                    ":zero": 0,
                     ":now": timestamp,
                 },
             )
@@ -375,29 +518,57 @@ class DynamoDBIngestRepository:
                 self._pause(random.uniform(0.02, 0.1) * (attempt + 1))
 
     def _refresh_symbol_metadata(self, common: Mapping[str, Any]) -> None:
+        update = (
+            "SET #name = :name, #type = :type, exchange = :exchange, "
+            "currency = :currency, market = :market, active = :active, "
+            "#coverage = if_not_exists(#coverage, :emptyCoverage)"
+        )
+        values = {
+            ":name": common["name"],
+            ":type": common["type"],
+            ":exchange": common["exchange"],
+            ":currency": common["currency"],
+            ":market": common["market"],
+            ":active": True,
+            ":emptyCoverage": {},
+        }
+        if "adapterHints" in common:
+            update += ", adapterHints = :adapterHints"
+            values[":adapterHints"] = common["adapterHints"]
         self._data.update_item(
             Key={"PK": f"SYM#{common['symbol']}", "SK": "META"},
-            UpdateExpression=(
-                "SET #name = :name, #type = :type, exchange = :exchange, "
-                "currency = :currency, market = :market, active = :active, "
-                "adapterHints = :adapterHints, "
-                "#coverage = if_not_exists(#coverage, :emptyCoverage)"
-            ),
+            UpdateExpression=update,
             ExpressionAttributeNames={
                 "#name": "name",
                 "#type": "type",
                 "#coverage": "coverage",
             },
-            ExpressionAttributeValues={
-                ":name": common["name"],
-                ":type": common["type"],
-                ":exchange": common["exchange"],
-                ":currency": common["currency"],
-                ":market": common["market"],
-                ":active": True,
-                ":adapterHints": common.get("adapterHints", {}),
-                ":emptyCoverage": {},
-            },
+            ExpressionAttributeValues=values,
+        )
+
+    def _refresh_symbol_projection(self, common: Mapping[str, Any]) -> None:
+        update = (
+            "SET symbol = :symbol, #name = :name, #type = :type, "
+            "exchange = :exchange, currency = :currency, market = :market, "
+            "active = :active"
+        )
+        values = {
+            ":symbol": common["symbol"],
+            ":name": common["name"],
+            ":type": common["type"],
+            ":exchange": common["exchange"],
+            ":currency": common["currency"],
+            ":market": common["market"],
+            ":active": True,
+        }
+        if "adapterHints" in common:
+            update += ", adapterHints = :adapterHints"
+            values[":adapterHints"] = common["adapterHints"]
+        self._data.update_item(
+            Key={"PK": "SYMBOLS", "SK": common["symbol"]},
+            UpdateExpression=update,
+            ExpressionAttributeNames={"#name": "name", "#type": "type"},
+            ExpressionAttributeValues=values,
         )
 
 

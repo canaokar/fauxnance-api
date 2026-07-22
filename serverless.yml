@@ -164,15 +164,19 @@ functions:
 
   admin:
     handler: src.admin.handler.handler
-    description: Manages Fauxnance cohorts and student API keys
+    description: Manages Fauxnance cohorts, student keys, symbols, and backfills
     memorySize: 512
     timeout: 15
     environment:
       CONTROL_TABLE: ${self:custom.controlTableName}
+      DATA_TABLE: ${self:custom.dataTableName}
+      BACKFILL_COORDINATOR_FUNCTION:
+        Ref: BackfillCoordinatorLambdaFunction
     package:
       patterns:
         - src/__init__.py
         - src/admin/**
+        - src/ingest/**
         - src/shared/**
     iamRoleStatementsName: ${self:service}-${sls:stage}-admin-role
     iamRoleStatements:
@@ -187,6 +191,20 @@ functions:
           - dynamodb:TransactWriteItems
         Resource:
           - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.dataTableName}
+      - Effect: Allow
+        Action:
+          - lambda:InvokeFunction
+        Resource:
+          - Fn::GetAtt:
+              - BackfillCoordinatorLambdaFunction
+              - Arn
     events:
       - httpApi:
           method: POST
@@ -223,6 +241,71 @@ functions:
           path: /v1/admin/keys/{keyId}
           authorizer:
             name: apiKeyAuthorizer
+      - httpApi:
+          method: POST
+          path: /v1/admin/symbols
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: POST
+          path: /v1/admin/ingest/backfill
+          authorizer:
+            name: apiKeyAuthorizer
+      - httpApi:
+          method: GET
+          path: /v1/admin/ingest/jobs/{jobId}
+          authorizer:
+            name: apiKeyAuthorizer
+
+  backfillCoordinator:
+    handler: src.admin.coordinator.handler
+    description: Expands administrative backfill jobs into symbol-year work
+    memorySize: 512
+    timeout: 900
+    reservedConcurrency: 1
+    environment:
+      DATA_TABLE: ${self:custom.dataTableName}
+      CONTROL_TABLE: ${self:custom.controlTableName}
+      INGEST_QUEUE_URL:
+        Ref: IngestQueue
+    package:
+      patterns:
+        - src/__init__.py
+        - src/admin/**
+        - src/ingest/**
+        - src/shared/**
+        - data/universes/*.json
+    iamRoleStatementsName: ${self:service}-${sls:stage}-backfill-coordinator-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.dataTableName}
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:DeleteItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:Query
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+      - Effect: Allow
+        Action:
+          - sqs:SendMessage
+        Resource:
+          - Fn::GetAtt:
+              - IngestQueue
+              - Arn
+    events:
+      - schedule:
+          rate: rate(5 minutes)
+          enabled: true
+          input:
+            action: sweep
 
   authorizer:
     handler: src.authorizer.handler.handler
@@ -311,6 +394,7 @@ functions:
       CONTROL_TABLE: ${self:custom.controlTableName}
       ALPHA_VANTAGE_API_KEY_PARAMETER: ${self:custom.alphaVantageApiKeyParameter}
       COINGECKO_API_KEY_PARAMETER: ${self:custom.coinGeckoApiKeyParameter}
+      MAX_PROCESSING_RECEIVES: "5"
     package:
       patterns:
         - src/__init__.py
@@ -369,7 +453,7 @@ resources:
             Fn::GetAtt:
               - IngestDeadLetterQueue
               - Arn
-          maxReceiveCount: 5
+          maxReceiveCount: 8
 
     IngestDeadLetterQueueAlarm:
       Type: AWS::CloudWatch::Alarm

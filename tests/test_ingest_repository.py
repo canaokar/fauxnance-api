@@ -239,6 +239,30 @@ class IngestRepositoryTests(unittest.TestCase):
         )
         self.assertEqual(refresh["ExpressionAttributeValues"][":emptyCoverage"], {})
 
+    def test_reregister_without_adapter_hints_preserves_existing_hints(self):
+        table = ExistingSeedTable()
+        repository = DynamoDBIngestRepository(table)
+
+        repository.seed_symbol(
+            {
+                "symbol": "X:BTC-USD",
+                "name": "Bitcoin",
+                "type": "crypto",
+                "exchange": "CRYPTO",
+                "currency": "USD",
+            },
+            market="CRYPTO",
+        )
+
+        self.assertEqual(len(table.updates), 2)
+        self.assertTrue(
+            all(
+                "adapterHints" not in request["UpdateExpression"]
+                and ":adapterHints" not in request["ExpressionAttributeValues"]
+                for request in table.updates
+            )
+        )
+
     def test_symbol_coverage_only_expands(self):
         table = CoverageTable()
         repository = DynamoDBIngestRepository(table)
@@ -344,6 +368,22 @@ class IngestRepositoryTests(unittest.TestCase):
         changed = repository.complete_backfill_work("job_123", "AAPL", 2020)
 
         self.assertFalse(changed)
+
+    def test_failed_work_cannot_transition_to_completed_on_redrive_race(self):
+        client = TransactionClient(TransactionCancelled())
+        repository = DynamoDBIngestRepository(
+            object(), ControlTable("failed"), transaction_client=client
+        )
+
+        changed = repository.complete_backfill_work("job_123", "AAPL", 2020)
+
+        self.assertFalse(changed)
+        self.assertEqual(len(client.calls), 1)
+        work_update = client.calls[0]["TransactItems"][0]["Update"]
+        self.assertIn("#state <> :failed", work_update["ConditionExpression"])
+        self.assertEqual(
+            work_update["ExpressionAttributeValues"][":failed"], "failed"
+        )
 
     def test_transaction_conflict_retries_inside_the_worker(self):
         client = ConflictOnceClient()

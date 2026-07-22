@@ -32,14 +32,16 @@ class BackfillYearMessage:
     symbol: str
     year: int
     market: str = "US"
+    range_start: date | None = None
+    range_end: date | None = None
 
     @property
     def start(self) -> date:
-        return date(self.year, 1, 1)
+        return self.range_start or date(self.year, 1, 1)
 
     @property
     def end(self) -> date:
-        return date(self.year, 12, 31)
+        return self.range_end or date(self.year, 12, 31)
 
 
 IngestMessage = EodBatchMessage | BackfillYearMessage
@@ -52,12 +54,14 @@ def parse_message(body: str) -> IngestMessage:
         raise InvalidIngestMessage("message body must be a JSON object") from exc
     if not isinstance(document, dict):
         raise InvalidIngestMessage("message body must be a JSON object")
-    if type(document.get("v")) is not int or document["v"] not in {1, 2}:
-        raise InvalidIngestMessage("message version must be 1 or 2")
+    if type(document.get("v")) is not int or document["v"] not in {1, 2, 3}:
+        raise InvalidIngestMessage("message version must be 1, 2, or 3")
     version = document["v"]
 
     kind = document.get("kind")
     if kind == "eod_batch":
+        if version == 3:
+            raise InvalidIngestMessage("version 3 is reserved for backfill_year")
         _require_exact_fields(
             document, {"v", "kind", "market", "symbol", "from", "to"}
         )
@@ -75,8 +79,10 @@ def parse_message(body: str) -> IngestMessage:
 
     if kind == "backfill_year":
         expected = {"v", "kind", "jobId", "symbol", "year"}
-        if version == 2:
+        if version >= 2:
             expected.add("market")
+        if version == 3:
+            expected.update({"from", "to"})
         _require_exact_fields(document, expected)
         job_id = document["jobId"]
         if not isinstance(job_id, str) or not _JOB_ID.fullmatch(job_id):
@@ -86,8 +92,22 @@ def parse_message(body: str) -> IngestMessage:
         year = document["year"]
         if type(year) is not int or not 1900 <= year <= 2100:
             raise InvalidIngestMessage("year must be an integer from 1900 to 2100")
+        range_start = None
+        range_end = None
+        if version == 3:
+            range_start = _parse_date(document["from"], "from")
+            range_end = _parse_date(document["to"], "to")
+            if range_start > range_end:
+                raise InvalidIngestMessage("from must not be after to")
+            if range_start.year != year or range_end.year != year:
+                raise InvalidIngestMessage("backfill range must stay within year")
         return BackfillYearMessage(
-            job_id=job_id, symbol=symbol, year=year, market=market.value
+            job_id=job_id,
+            symbol=symbol,
+            year=year,
+            market=market.value,
+            range_start=range_start,
+            range_end=range_end,
         )
 
     raise InvalidIngestMessage("message kind is unsupported")

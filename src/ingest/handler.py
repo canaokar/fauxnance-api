@@ -21,6 +21,10 @@ from src.shared.source_guard import ALPHA_VANTAGE_DAILY_LIMIT, DynamoDbSourceGua
 _LOGGER = logging.getLogger(__name__)
 
 
+class TerminalReconciliation(RuntimeError):
+    """Marks a receive reserved for terminal-state persistence, not upstream I/O."""
+
+
 class EodSource(Protocol):
     def get_eod(
         self,
@@ -72,6 +76,19 @@ class IngestWorker:
         elif not isinstance(message, EodBatchMessage):  # pragma: no cover
             raise TypeError("unsupported parsed ingest message")
 
+    def record_terminal_failure(self, body: str, error: Exception) -> bool:
+        """Persist the terminal state for a backfill unit before SQS redrives it."""
+
+        message = parse_message(body)
+        if not isinstance(message, BackfillYearMessage):
+            return False
+        return self._repository.fail_backfill_work(
+            message.job_id,
+            message.symbol,
+            message.year,
+            failure=type(error).__name__,
+        )
+
 
 _worker: IngestWorker | None = None
 
@@ -81,29 +98,65 @@ def handler(
     _context: object,
     *,
     worker: IngestWorker | None = None,
+    max_receive_count: int | None = None,
 ) -> dict[str, list[dict[str, str]]]:
     """Process SQS records and report only the records that should retry."""
 
     active_worker = worker or _default_worker()
+    processing_receive_limit = max_receive_count or int(
+        os.environ.get("MAX_PROCESSING_RECEIVES", "5")
+    )
     failures: list[dict[str, str]] = []
     for record in event.get("Records", []):
         identifier = str(record.get("messageId", ""))
+        receive_count = _receive_count(record)
+        body = record.get("body")
+        if receive_count > processing_receive_limit:
+            try:
+                if not isinstance(body, str):
+                    raise ValueError("SQS record body must be a string")
+                active_worker.record_terminal_failure(
+                    body, TerminalReconciliation("terminal reconciliation")
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Terminal ingest reconciliation failed: messageId=%s",
+                    identifier,
+                )
+            failures.append({"itemIdentifier": identifier})
+            continue
         try:
-            body = record.get("body")
             if not isinstance(body, str):
                 raise ValueError("SQS record body must be a string")
             active_worker.process(body)
-        except Exception:
+        except Exception as exc:
             _LOGGER.exception(
-                "Ingest record failed: messageId=%s body=%s",
+                "Ingest record failed: messageId=%s",
                 identifier,
-                record.get("body"),
             )
+            if receive_count >= processing_receive_limit and isinstance(body, str):
+                try:
+                    active_worker.record_terminal_failure(body, exc)
+                except Exception:
+                    _LOGGER.exception(
+                        "Terminal ingest failure could not be recorded: messageId=%s",
+                        identifier,
+                    )
             failures.append({"itemIdentifier": identifier})
     return {"batchItemFailures": failures}
 
 
 lambda_handler = handler
+
+
+def _receive_count(record: Mapping[str, Any]) -> int:
+    attributes = record.get("attributes")
+    value = attributes.get("ApproximateReceiveCount") if isinstance(attributes, Mapping) else None
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        return 1
+    return max(count, 1)
 
 
 def _default_worker() -> IngestWorker:

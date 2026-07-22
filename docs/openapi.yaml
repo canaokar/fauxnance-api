@@ -1068,6 +1068,7 @@ components:
         to:
           type: string
           format: date
+          description: Must not be later than the current UTC date.
       oneOf:
         - required: [symbols]
         - required: [universe]
@@ -1084,6 +1085,11 @@ components:
             state:
               type: string
               const: preparing
+            dispatchDeferred:
+              type: boolean
+              description: >-
+                True when immediate dispatch was ambiguous and the scheduled
+                recovery sweep will pick up the durably stored job.
         meta:
           $ref: "#/components/schemas/BaseMeta"
     FailedBackfillUnit:
@@ -1100,7 +1106,14 @@ components:
           type: string
     BackfillJob:
       type: object
-      required: [jobId, state, done, total, failed]
+      required:
+        - jobId
+        - state
+        - done
+        - total
+        - failed
+        - failedCount
+        - failuresTruncated
       properties:
         jobId:
           type: string
@@ -1115,8 +1128,17 @@ components:
           minimum: 0
         failed:
           type: array
+          maxItems: 100
+          description: First 100 failed symbol-year units, ordered by work key.
           items:
             $ref: "#/components/schemas/FailedBackfillUnit"
+        failedCount:
+          type: integer
+          minimum: 0
+          description: Total failed symbol-year units from the job metadata.
+        failuresTruncated:
+          type: boolean
+          description: True when failed contains only the first 100 failures.
         preparationError:
           type: string
     BackfillJobResponse:
