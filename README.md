@@ -6,8 +6,9 @@ upstream sources, stores it in DynamoDB, and serves it behind per-student API ke
 so trainees stop fighting paid data vendors and start building.
 
 **Status: Phase 2 is implemented and deployed to AWS; the initial historical
-backfill and one-week schedule observation remain.** The repository includes the
-HTTP API, API-key quotas, a 515-symbol US universe, resumable historical
+backfill completed on 2026-07-22; only the one-week schedule observation
+remains.** The repository includes the HTTP API, API-key quotas, a 515-symbol
+US universe, resumable historical
 backfills, and scheduled Yahoo-to-Alpha EOD ingestion with SQS retries and a
 DLQ. The API uses API Gateway's generated URL:
 `https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com`.
