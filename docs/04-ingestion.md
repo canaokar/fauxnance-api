@@ -40,11 +40,11 @@ Shared adapter machinery (in `src/shared/`):
 | Adapter | Key needed | Free limit (approx) | Used for | Risk notes |
 |---|---|---|---|---|
 | **Stooq** | No | CSV endpoint currently requires a browser proof-of-work check | Deferred pending a supported machine-to-machine path | Phase 1 does not bypass the browser check observed in July 2026. |
-| **Yahoo Finance** (unofficial) | No | Unofficial; throttles/breaks without notice | Primary US EOD backfill and nightly ingest; later NSE/BSE and quotes | **Fragile & ToS-grey.** Isolated behind one adapter, low volume, and protected by a circuit cooldown. |
-| **Finnhub** | Yes (SSM) | 60 req/min | US real-time-ish quotes | Solid free tier; key already held |
+| **Yahoo Finance** (unofficial) | No | Unofficial; throttles/breaks without notice | US/India EOD, deep crypto history, discovery, and quote fallback | **Fragile & ToS-grey.** Isolated behind one adapter, low volume, and protected by a circuit cooldown. |
+| **Finnhub** | Optional SSM key | 60 req/min | Preferred US real-time-ish quotes | Missing key leaves Yahoo quote fallback enabled. |
 | **Alpha Vantage** | Optional SSM key | [25 requests/day](https://www.alphavantage.co/support/) | Limited emergency US EOD fallback | Missing key disables only this fallback; its tiny quota cannot cover the full universe during a Yahoo-wide outage. |
-| **CoinGecko** | Yes (free Demo key in SSM) | Demo-plan budget configured from current published limits | Recent crypto EOD + quotes | Public historical access is limited to 365 days; Yahoo supplies deep-history backfill |
-| **frankfurter.dev** (ECB rates) | No | Unmetered | FX EOD reference rates | ECB daily fixes; EUR-based, cross-rates computed |
+| **CoinGecko** | Optional Demo key in SSM | Guarded at 25 calls/min in the API | Preferred recent crypto EOD + quotes | Demo history is bounded; Yahoo supplies deep-history backfill and the missing-key fallback. |
+| **frankfurter.dev** (ECB rates) | No | Unmetered | Preferred FX EOD reference rates and latest quote | ECB daily fixes; EUR-based cross-rates are provided by the service. |
 
 ### Fallback chains
 
@@ -61,14 +61,15 @@ Shared adapter machinery (in `src/shared/`):
 
 ## Scheduled bulk ingest
 
-The Phase 2 EventBridge schedule is defined on the dispatcher Lambda in
+The EventBridge schedules are defined on the dispatcher Lambda in
 `serverless.yml`:
 
 | Schedule | Cron | Universe slice |
 |---|---|---|
 | US close | `cron(30 23 ? * MON-FRI *)` | Active US equities + ETFs |
-
-India, FX, crypto, and quote warming are Phase 3 or later.
+| India close | `cron(30 13 ? * MON-FRI *)` | Active NSE + BSE equities |
+| FX reference rates | `cron(0 18 ? * MON-FRI *)` | Active FX pairs |
+| Crypto daily | `cron(30 1 * * ? *)` | Active cryptocurrencies |
 
 Worker behavior: reserved concurrency 2; for each one-symbol message it picks the
 first capability-matching adapter with budget, fetches, normalizes (dates to
@@ -84,16 +85,18 @@ overlapping current-year backfill can otherwise lose candles. Synthetic data is
 never an ingest result: after all real adapters fail, the record retries and may
 reach the DLQ; synthesis remains exclusively on the API read path.
 
-Two versioned queue payloads are sufficient:
+Two versioned queue payloads are sufficient. Version 2 carries the canonical
+market explicitly; the worker still accepts the original US-only version 1
+shape for already-queued compatibility:
 
 ```json
-{ "v": 1, "kind": "eod_batch", "market": "US", "symbol": "AAPL",
+{ "v": 2, "kind": "eod_batch", "market": "IN", "symbol": "INFY.NS",
   "from": "2026-07-15", "to": "2026-07-21" }
 ```
 
 ```json
-{ "v": 1, "kind": "backfill_year", "jobId": "job_123",
-  "symbol": "AAPL", "year": 2020 }
+{ "v": 2, "kind": "backfill_year", "jobId": "job_123", "market": "FX",
+  "symbol": "FX:EURUSD", "year": 2020 }
 ```
 
 For Frankfurter reference rates, normalization produces a close-only candle
@@ -102,14 +105,16 @@ return null volume when the upstream has no meaningful figure.
 
 ### Corporate actions (splits & dividends)
 
-Corporate-action ingestion remains a Phase 3 task. Through Phase 2, no `ADJ`
-items are produced, so `adjclose` equals raw `close`. Alpha Vantage uses the raw
-`TIME_SERIES_DAILY` function; its adjusted endpoint is premium.
+Yahoo chart fetches include split and dividend events. The worker validates and
+merges those events into yearly `ADJ` items, and candle reads apply their factors
+to calculate `adjclose` without rewriting raw observations. Sources without
+corporate actions return an empty action collection.
 
 ## Historical backfill (10+ years)
 
-- Triggered by `scripts/enqueue_backfill.py`. Admin HTTP triggering and lazy
-  unknown-symbol backfills are deferred.
+- Curated jobs are triggered by `scripts/enqueue_backfill.py`; exact unknown
+  symbols are registered through Yahoo metadata and receive a deterministic,
+  lease-protected 11-year lazy job.
 - A `JOB#` item tracks symbol-year work-unit totals; one SQS message and one
   `WORK#<symbol>#YEAR#<YYYY>` state item per unit keep invocations small and
   resumable—a failed year retries alone.
@@ -118,7 +123,7 @@ items are produced, so `adjclose` equals raw `close`. Alpha Vantage uses the raw
   politeness delays, not compute: budget ~2–3 hours wall-clock at concurrency 2.
   Run once per environment, then it's nightly deltas forever.
 
-## On-demand (lazy) path — Phase 3
+## On-demand (lazy) path
 
 Request for a symbol not in the registry:
 
@@ -137,7 +142,7 @@ Until a registered symbol has at least one real candle, candle requests keep
 returning `202`; synthetic history is not invented from an arbitrary starting
 price.
 
-## Synthetic fallback (`src/synthetic/`) — Phase 3
+## Synthetic fallback (`src/synthetic/`)
 
 Purpose: keep already-initialized class symbols usable during an upstream outage.
 This is not a simulation product; it is an always-flagged degradation layer.
@@ -166,10 +171,10 @@ This is not a simulation product; it is an always-flagged degradation layer.
 
 ## Data quality rules
 
-- Phase 2 rejects rows unless prices are finite and positive,
+- Ingestion rejects rows unless prices are finite and positive,
   `low ≤ open,close ≤ high`, volume is null or non-negative, dates are unique
-  and within the requested range, and the source is present. The action-aware
-  large-move check is deferred with corporate actions to Phase 3.
+  and within the requested range, and the source is present. Cross-session
+  large-move anomaly scoring remains a v1.x data-quality enhancement.
 - Conflicting values between sources: first-written wins (immutability tenet);
   discrepancies logged with both values for spot-checking.
 - Every persisted candle row stores `src` (adapter name) because fallback sources

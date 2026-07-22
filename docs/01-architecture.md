@@ -43,7 +43,7 @@ flowchart LR
 | Auth | **Lambda authorizer** (payload v2, response caching 300 s) | Looks up hashed key in the control table, attaches key/cohort context to the request. Cached so most requests skip the lookup. |
 | Compute | **Four Python 3.13 Lambdas** (arm64) | `api`, `authorizer`, `dispatcher`, and `ingest-worker`. The admin API remains deferred to Phase 4. |
 | Storage | **DynamoDB, provisioned capacity within the always-free 25 RCU/25 WCU** | EOD-scale data is small (see [03-data-model](03-data-model.md)); provisioned-free beats on-demand pricing at near-zero budget. Switch to on-demand only if throttling appears. |
-| Scheduling | **EventBridge scheduled rule** | Phase 2 runs one US weekday cron. Other markets are added with Phase 3. |
+| Scheduling | **Four EventBridge scheduled rules** | US, India, and FX run after weekday closes; crypto runs daily. |
 | Ingest fan-out | **SQS standard queue + DLQ** | Dispatcher enqueues one symbol per message for exact retries. DLQ + redrive gives retry semantics and visibility into failed symbols. |
 | Secrets | **SSM Parameter Store `SecureString`** (standard tier, free) | Upstream API keys (Finnhub, Alpha Vantage, CoinGecko Demo). Not Secrets Manager — $0.40/secret/month is the entire monthly budget. |
 | Observability | **CloudWatch Logs (14-day retention) + a few alarms** | Structured JSON logs via Lambda Powertools; alarms on DLQ depth, authorizer errors, 5xx rate. |
@@ -78,8 +78,8 @@ flowchart LR
 
 1. An EventBridge scheduled rule fires per market after close (see [04-ingestion](04-ingestion.md)
    for the cron table).
-2. A tiny dispatcher enumerates active US symbols and sends one seven-day
-   overlap request per SQS message, using SQS API batches of ten.
+2. A tiny dispatcher enumerates active symbols for that market and sends one
+   seven-day overlap request per SQS message, using SQS API batches of ten.
 3. Ingest worker (reserved concurrency = 2, to respect upstream rate limits)
    pulls messages, calls the preferred adapter, normalizes, writes candle
    chunks + updates each symbol's `coverage.eodTo` value.
@@ -91,8 +91,9 @@ items rather than scanning the symbol registry.
 
 ### 4. Admin path
 
-The public admin API is deferred to Phase 4. Phase 2 backfills are started by the
-operator-only `scripts/enqueue_backfill.py` command.
+The public admin API is deferred to Phase 4. Curated backfills are started by the
+operator-only `scripts/enqueue_backfill.py` command; exact unknown symbols use
+the API's lease-protected lazy-backfill path.
 
 ## Tenets
 

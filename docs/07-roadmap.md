@@ -38,7 +38,7 @@ The smallest thing a student could actually use.
 steps for a week. This requires post-deployment observation and is not claimed by
 the code-complete status above.
 
-## Phase 3 — Full coverage + quotes + synthetic
+## Phase 3 — Full coverage + quotes + synthetic *(implemented and deployed 2026-07-22)*
 
 - NSE/BSE (Yahoo), FX (frankfurter), crypto recent data (CoinGecko), and crypto
   deep history (Yahoo) universes + schedules.
@@ -53,6 +53,10 @@ the code-complete status above.
 **Exit criterion:** kill all upstream access in dev → registered symbols with
 stored history still serve candles and quotes using stored, stale, or explicitly
 synthetic data. A newly discovered symbol without a real anchor may remain `202`.
+
+The offline behavior is covered by deterministic unit tests. Initial India, FX,
+and crypto backfills were launched as separately resumable jobs during the Phase
+3 deployment; operational schedule observation continues after code completion.
 
 ## Phase 4 — Cohort operations & polish
 

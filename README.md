@@ -5,12 +5,12 @@ A free, serverless market-data API built for bank graduate-training capstone pro
 upstream sources, stores it in DynamoDB, and serves it behind per-student API keys —
 so trainees stop fighting paid data vendors and start building.
 
-**Status: Phase 2 is implemented and deployed to AWS; the initial historical
-backfill completed on 2026-07-22; only the one-week schedule observation
-remains.** The repository includes the HTTP API, API-key quotas, a 515-symbol
-US universe, resumable historical
-backfills, and scheduled Yahoo-to-Alpha EOD ingestion with SQS retries and a
-DLQ. The API uses API Gateway's generated URL:
+**Status: Phase 3 is implemented and deployed to AWS.** The repository includes
+the authenticated HTTP API, API-key quotas, 515 US symbols, 30 Indian equities,
+12 FX pairs, 12 cryptocurrencies, resumable and lazy historical backfills,
+corporate actions, cache-first quotes, and deterministic synthetic fallback.
+Four market schedules feed the guarded multi-source ingest pipeline through SQS
+with retries and a DLQ. The API uses API Gateway's generated URL:
 `https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com`.
 
 | Doc | Contents |
@@ -59,6 +59,7 @@ bounds to re-enqueue only unfinished work.
 later with `npx serverless info --stage dev --region eu-west-2 --aws-profile megh.io`.
 No custom domain is configured.
 
-Alpha Vantage is an optional emergency fallback. To enable it, create
-`/fauxnance/dev/upstreams/alpha_vantage/api_key` as an SSM `SecureString`; a
-missing parameter leaves the primary Yahoo path operational.
+Alpha Vantage, Finnhub, and CoinGecko Demo are optional keyed sources. Enable
+them with SSM `SecureString` values at
+`/fauxnance/dev/upstreams/{alpha_vantage|finnhub|coingecko}/api_key`. Missing
+parameters leave the no-key Yahoo and Frankfurter paths operational.

@@ -11,7 +11,7 @@ functions, schedule, and transient ingest messaging.
 | `fauxnance-dev-data` DynamoDB table | Terraform |
 | `fauxnance-dev-control` DynamoDB table | Terraform |
 | `/fauxnance/dev/admin/key_ids` SSM parameter | Terraform |
-| HTTP API, four Lambdas, EventBridge rule, IAM roles, and logs | Serverless Framework |
+| HTTP API, four Lambdas, four EventBridge rules, IAM roles, and logs | Serverless Framework |
 | Ingest queue, DLQ, redrive policy, and DLQ-depth alarm | Serverless Framework |
 
 The table names are fixed for the dev stage and are used directly by both tools.
@@ -44,9 +44,13 @@ make deploy
 
 The bootstrap script replaces the placeholder admin allowlist value. Terraform
 ignores later changes to that value so subsequent applies do not revoke keys.
+The dev API is currently served directly from
+`https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com`; no custom domain or
+API mapping is configured.
 
 ## Deferred
 
 Remote state, reusable Terraform modules, multiple environment roots, custom
 domains, SNS notifications, dashboards, and budgets remain deferred. The
 optional Alpha Vantage key is written directly to SSM and never Terraform state.
+Finnhub and CoinGecko Demo keys follow the same optional SecureString pattern.

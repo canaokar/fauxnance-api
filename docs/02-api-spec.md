@@ -1,6 +1,8 @@
 # 02 — API Specification
 
-Base URL: `https://api.<domain>/v1` (or the raw API Gateway URL in dev).
+Base URL:
+`https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1` (the raw API
+Gateway URL; no custom domain is currently configured).
 All endpoints require the `X-Api-Key` header unless noted. All v1 responses are
 JSON, UTF-8. CSV candle export is deferred to v1.x. A machine-readable
 `docs/openapi.yaml` will be generated from this spec in Phase 1 and is the
@@ -73,7 +75,7 @@ may use `error.code` when the body is a Fauxnance error.
 
 ## Public endpoints
 
-### `GET /v1/symbols`
+### `GET /v1/symbols` *(planned for Phase 4)*
 Search/browse the symbol registry.
 
 | Query param | Type | Notes |
@@ -232,6 +234,7 @@ ingestion conditionally advances `latestEod`. It does not scan symbol metadata.
 | 404 | `SYMBOL_NOT_FOUND` | Unknown symbol, registration failed |
 | 202 | `BACKFILL_IN_PROGRESS` | Data being fetched; retry later |
 | 429 | `RATE_LIMITED` | Daily quota exhausted (`Retry-After` header set) |
+| 503 | `UPSTREAM_UNAVAILABLE` | Exact symbol discovery could not reach its upstream; retry later |
 | 500 | `INTERNAL_ERROR` | Bug (alarmed) |
 
 ## Versioning & compatibility
