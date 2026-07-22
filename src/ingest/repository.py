@@ -34,6 +34,14 @@ class DynamoDBIngestRepository:
         for month, month_candles in sorted(chunks.items()):
             self._merge_chunk(symbol, month, month_candles)
 
+    def get_adapter_hints(self, symbol: str) -> Mapping[str, Any]:
+        item = self._data.get_item(
+            Key={"PK": f"SYM#{symbol}", "SK": "META"},
+            ConsistentRead=True,
+        ).get("Item")
+        hints = item.get("adapterHints") if item else None
+        return dict(hints) if isinstance(hints, Mapping) else {}
+
     def write_actions(
         self, symbol: str, actions: Sequence[CorporateAction]
     ) -> None:

@@ -37,8 +37,8 @@ class Source:
         self.outcomes = outcomes
         self.calls = []
 
-    def get_eod(self, symbol, start, end):
-        self.calls.append((symbol, start, end))
+    def get_eod(self, symbol, start, end, **kwargs):
+        self.calls.append((symbol, start, end, kwargs))
         outcome = self.outcomes[symbol]
         if isinstance(outcome, Exception):
             raise outcome
@@ -54,6 +54,10 @@ class Repository:
 
     def write_actions(self, symbol, actions):
         self.calls.append(("actions", symbol, actions))
+
+    def get_adapter_hints(self, symbol):
+        self.calls.append(("hints", symbol))
+        return {"coinGeckoId": "bitcoin"} if symbol == "X:BTC-USD" else {}
 
     def advance_symbol_coverage(self, symbol, first, last):
         self.calls.append(("coverage", symbol, first, last))
@@ -106,8 +110,12 @@ class IngestWorkerTests(unittest.TestCase):
             response, {"batchItemFailures": [{"itemIdentifier": "retry-2"}]}
         )
         self.assertEqual(
-            source.calls[0],
+            source.calls[0][:3],
             ("AAPL", date(2026, 7, 13), date(2026, 7, 21)),
+        )
+        self.assertEqual(
+            source.calls[0][3],
+            {"market": "US", "purpose": "scheduled", "adapter_hints": {}},
         )
         self.assertIn(
             ("coverage", "AAPL", date(2026, 7, 21), date(2026, 7, 21)),
@@ -130,7 +138,10 @@ class IngestWorkerTests(unittest.TestCase):
 
         worker.process(body)
 
-        self.assertEqual(repository.calls, [("complete", "job_123", "AAPL", 2000)])
+        self.assertEqual(
+            repository.calls,
+            [("hints", "AAPL"), ("complete", "job_123", "AAPL", 2000)],
+        )
 
     def test_intrinsically_invalid_candle_retries_without_persistence(self):
         repository = Repository()
@@ -148,7 +159,7 @@ class IngestWorkerTests(unittest.TestCase):
         self.assertEqual(
             response, {"batchItemFailures": [{"itemIdentifier": "bad-candle"}]}
         )
-        self.assertEqual(repository.calls, [])
+        self.assertEqual(repository.calls, [("hints", "AAPL")])
 
     def test_persists_valid_corporate_actions_with_candles(self):
         action = CorporateAction(

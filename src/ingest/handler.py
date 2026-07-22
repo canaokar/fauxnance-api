@@ -7,7 +7,9 @@ import os
 from typing import Any, Mapping, Protocol
 
 from src.adapters.alpha_vantage import AlphaVantageAdapter
-from src.adapters.us_eod import UsEodChain
+from src.adapters.coingecko import CoinGeckoAdapter
+from src.adapters.frankfurter import FrankfurterAdapter
+from src.adapters.market_eod import MarketEodRouter
 from src.adapters.yahoo import YahooAdapter
 from src.ingest.messages import BackfillYearMessage, EodBatchMessage, parse_message
 from src.ingest.repository import DynamoDBIngestRepository
@@ -20,7 +22,16 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class EodSource(Protocol):
-    def get_eod(self, symbol: str, start: Any, end: Any) -> EodResult: ...
+    def get_eod(
+        self,
+        symbol: str,
+        start: Any,
+        end: Any,
+        *,
+        market: str,
+        purpose: str,
+        adapter_hints: Mapping[str, Any] | None = None,
+    ) -> EodResult: ...
 
 
 class IngestWorker:
@@ -30,7 +41,14 @@ class IngestWorker:
 
     def process(self, body: str) -> None:
         message = parse_message(body)
-        result = self._source.get_eod(message.symbol, message.start, message.end)
+        result = self._source.get_eod(
+            message.symbol,
+            message.start,
+            message.end,
+            market=message.market,
+            purpose="backfill" if isinstance(message, BackfillYearMessage) else "scheduled",
+            adapter_hints=self._repository.get_adapter_hints(message.symbol),
+        )
         candles = validate_candles(
             result.candles, start=message.start, end=message.end
         )
@@ -115,11 +133,28 @@ def _default_worker() -> IngestWorker:
                 daily_limit=ALPHA_VANTAGE_DAILY_LIMIT,
             )
 
-    source = UsEodChain(
+    frankfurter = FrankfurterAdapter()
+    frankfurter_guard = DynamoDbSourceGuard(control_table, "frankfurter")
+
+    coingecko = None
+    coingecko_guard = None
+    coin_parameter = os.environ.get("COINGECKO_API_KEY_PARAMETER", "").strip()
+    if coin_parameter:
+        ssm = boto3.client("ssm")
+        coin_key = _read_parameter(ssm, coin_parameter)
+        if coin_key is not None:
+            coingecko = CoinGeckoAdapter(coin_key)
+            coingecko_guard = DynamoDbSourceGuard(control_table, "coingecko")
+
+    source = MarketEodRouter(
         yahoo,
         yahoo_guard,
         alpha_vantage=alpha,
         alpha_vantage_guard=alpha_guard,
+        frankfurter=frankfurter,
+        frankfurter_guard=frankfurter_guard,
+        coingecko=coingecko,
+        coingecko_guard=coingecko_guard,
     )
     _worker = IngestWorker(
         source,
