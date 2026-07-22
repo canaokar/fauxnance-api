@@ -80,6 +80,8 @@ functions:
       DEFAULT_DAILY_QUOTA: "2000"
       HEALTH_MARKETS: US,IN,FX,CRYPTO
       FINNHUB_API_KEY_PARAMETER: ${self:custom.finnhubApiKeyParameter}
+      INGEST_QUEUE_URL:
+        Ref: IngestQueue
     package:
       patterns:
         - src/__init__.py
@@ -95,11 +97,13 @@ functions:
           - dynamodb:BatchGetItem
           - dynamodb:Query
           - dynamodb:PutItem
+          - dynamodb:TransactWriteItems
         Resource:
           - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.dataTableName}
       - Effect: Allow
         Action:
           - dynamodb:GetItem
+          - dynamodb:PutItem
           - dynamodb:UpdateItem
         Resource:
           - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
@@ -108,6 +112,13 @@ functions:
           - ssm:GetParameter
         Resource:
           - arn:${aws:partition}:ssm:${aws:region}:${self:custom.awsAccountId}:parameter/fauxnance/${sls:stage}/upstreams/finnhub/api_key
+      - Effect: Allow
+        Action:
+          - sqs:SendMessage
+        Resource:
+          - Fn::GetAtt:
+              - IngestQueue
+              - Arn
     events:
       - httpApi:
           method: GET

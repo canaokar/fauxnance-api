@@ -6,12 +6,13 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, Mapping
 
-from src.shared.market_data import Candle, Quote
+from src.shared.market_data import Candle, Quote, SymbolMetadata
 
 
 class MarketDataRepository:
-    def __init__(self, table: Any) -> None:
+    def __init__(self, table: Any, *, transaction_client: Any | None = None) -> None:
         self._table = table
+        self._transaction_client = transaction_client
 
     def get_symbol(self, symbol: str) -> Mapping[str, Any] | None:
         response = self._table.get_item(Key={"PK": f"SYM#{symbol}", "SK": "META"})
@@ -22,6 +23,67 @@ class MarketDataRepository:
             Key={"PK": f"MARKET#{market}", "SK": "STATUS"}
         )
         return response.get("Item")
+
+    def register_discovered(
+        self,
+        metadata: SymbolMetadata,
+        *,
+        market: str,
+        discovered_at: datetime,
+        job_id: str,
+    ) -> Mapping[str, Any]:
+        timestamp = _timestamp(discovered_at)
+        common = {
+            "symbol": metadata.symbol,
+            "name": metadata.name,
+            "type": metadata.type,
+            "exchange": metadata.exchange,
+            "currency": metadata.currency,
+            "market": market,
+            "active": metadata.active,
+            "discovered": True,
+            "discoveredAt": timestamp,
+            "adapterHints": dict(metadata.adapter_hints),
+            "lazyBackfillJobId": job_id,
+        }
+        meta = {
+            "PK": f"SYM#{metadata.symbol}",
+            "SK": "META",
+            **common,
+            "coverage": {},
+        }
+        projection = {"PK": "SYMBOLS", "SK": metadata.symbol, **common}
+        client = self._transaction_client or self._table.meta.client
+        try:
+            client.transact_write_items(
+                TransactItems=[
+                    {
+                        "Put": {
+                            "TableName": self._table.name,
+                            "Item": meta,
+                            "ConditionExpression": "attribute_not_exists(PK)",
+                        }
+                    },
+                    {
+                        "Put": {
+                            "TableName": self._table.name,
+                            "Item": projection,
+                            "ConditionExpression": "attribute_not_exists(PK)",
+                        }
+                    },
+                ]
+            )
+            return meta
+        except Exception as exc:
+            if not _is_transaction_cancelled(exc):
+                raise
+            existing = self._table.get_item(
+                Key={"PK": f"SYM#{metadata.symbol}", "SK": "META"},
+                ConsistentRead=True,
+            ).get("Item")
+            if existing is None:
+                raise
+            return existing
 
     def get_candle_chunks(
         self, symbol: str, start: date, end: date
@@ -175,3 +237,8 @@ def _as_utc(value: datetime) -> datetime:
 
 def _timestamp(value: datetime) -> str:
     return _as_utc(value).isoformat().replace("+00:00", "Z")
+
+
+def _is_transaction_cancelled(exc: Exception) -> bool:
+    response = getattr(exc, "response", {})
+    return response.get("Error", {}).get("Code") == "TransactionCanceledException"

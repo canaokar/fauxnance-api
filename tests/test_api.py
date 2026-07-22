@@ -4,9 +4,10 @@ import json
 import unittest
 
 from src.api.handler import ApiService, lambda_handler
+from src.api.discovery import DiscoveryUnavailable
 from src.api.quotes import QuoteUnavailable, ResolvedQuote
 from src.api.repository import IdentityRepository, MarketDataRepository
-from src.shared.market_data import Candle, Quote
+from src.shared.market_data import Candle, Quote, SymbolMetadata
 from src.shared.quota import QuotaExceeded, Usage
 
 
@@ -106,6 +107,18 @@ class FakeQuoteResolver:
             source="upstream:finnhub",
             stale=False,
         )
+
+
+class FakeDiscoveryService:
+    def __init__(self, outcome):
+        self.outcome = outcome
+        self.calls = []
+
+    def ensure_registered(self, symbol, *, now):
+        self.calls.append((symbol, now))
+        if isinstance(self.outcome, Exception):
+            raise self.outcome
+        return self.outcome
 
 
 def event(path, *, query=None, symbol=None, auth=True):
@@ -212,6 +225,55 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(response["statusCode"], 404)
         self.assertEqual(decoded(response)["error"]["code"], "SYMBOL_NOT_FOUND")
         self.assertEqual(len(self.quota.calls), 1)
+
+    def test_missing_valid_symbol_is_discovered_and_returned(self):
+        self.data.symbol = None
+        discovered = {
+            "name": "Infosys Limited",
+            "type": "equity",
+            "exchange": "NSE",
+            "currency": "INR",
+            "active": True,
+            "market": "IN",
+            "coverage": {},
+            "discovered": True,
+        }
+        discovery = FakeDiscoveryService(discovered)
+        service = ApiService(
+            self.data,
+            self.identity,
+            self.quota,
+            quote_resolver=self.quotes,
+            discovery_service=discovery,
+            clock=lambda: NOW,
+        )
+
+        response = lambda_handler(
+            event("/v1/symbols/INFY.NS", symbol="INFY.NS"),
+            None,
+            service=service,
+        )
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(decoded(response)["data"]["symbol"], "INFY.NS")
+        self.assertEqual(discovery.calls, [("INFY.NS", NOW)])
+
+    def test_discovery_outage_is_retryable_and_not_misreported_as_not_found(self):
+        service = ApiService(
+            self.data,
+            self.identity,
+            self.quota,
+            discovery_service=FakeDiscoveryService(
+                DiscoveryUnavailable("upstream down")
+            ),
+            clock=lambda: NOW,
+        )
+        response = lambda_handler(
+            event("/v1/symbols/AAPL", symbol="AAPL"), None, service=service
+        )
+        self.assertEqual(response["statusCode"], 503)
+        self.assertEqual(decoded(response)["error"]["code"], "UPSTREAM_UNAVAILABLE")
+        self.assertEqual(response["headers"]["Retry-After"], "60")
 
     def test_candles_are_trimmed_sorted_and_adjusted_at_read_time(self):
         self.data.chunks = [
@@ -423,6 +485,40 @@ class MarketDataRepositoryTests(unittest.TestCase):
             table.item["expiresAt"],
             int(datetime(2026, 7, 28, 12, tzinfo=UTC).timestamp()),
         )
+
+    def test_discovered_registration_writes_meta_and_projection_atomically(self):
+        class Client:
+            def __init__(self):
+                self.calls = []
+
+            def transact_write_items(self, **request):
+                self.calls.append(request)
+
+        class Table:
+            name = "fauxnance-dev-data"
+
+        client = Client()
+        repository = MarketDataRepository(Table(), transaction_client=client)
+        item = repository.register_discovered(
+            SymbolMetadata(
+                symbol="INFY.NS",
+                name="Infosys Limited",
+                type="equity",
+                exchange="NSE",
+                currency="INR",
+                adapter_hints={"yahooSymbol": "INFY.NS"},
+            ),
+            market="IN",
+            discovered_at=NOW,
+            job_id="lazy_123_2026",
+        )
+
+        writes = client.calls[0]["TransactItems"]
+        self.assertEqual(len(writes), 2)
+        self.assertEqual(writes[0]["Put"]["Item"]["PK"], "SYM#INFY.NS")
+        self.assertEqual(writes[1]["Put"]["Item"]["PK"], "SYMBOLS")
+        self.assertTrue(item["discovered"])
+        self.assertEqual(item["coverage"], {})
 
 
 class IdentityRepositoryTests(unittest.TestCase):

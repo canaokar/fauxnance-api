@@ -60,7 +60,8 @@ class EodDispatcher:
         return len(bodies)
 
     def _active_symbols(self, market: str) -> list[str]:
-        symbols: set[str] = set()
+        curated: list[Mapping[str, Any]] = []
+        discovered: list[Mapping[str, Any]] = []
         cursor: Mapping[str, Any] | None = None
         while True:
             request: dict[str, Any] = {
@@ -71,12 +72,29 @@ class EodDispatcher:
                 request["ExclusiveStartKey"] = cursor
             response = self._data.query(**request)
             for item in response.get("Items", []):
-                if item.get("active") is True and item.get("market") == market:
-                    symbol = item.get("symbol") or item.get("SK")
-                    if isinstance(symbol, str) and symbol:
-                        symbols.add(symbol)
+                if item.get("active") is not True:
+                    continue
+                if item.get("discovered") is True:
+                    if isinstance(item.get("discoveredAt"), str):
+                        discovered.append(item)
+                else:
+                    curated.append(item)
             cursor = response.get("LastEvaluatedKey")
             if not cursor:
+                selected = curated + sorted(
+                    discovered,
+                    key=lambda value: (
+                        str(value.get("discoveredAt")),
+                        str(value.get("symbol") or value.get("SK")),
+                    ),
+                    reverse=True,
+                )[:300]
+                symbols = {
+                    str(item.get("symbol") or item.get("SK"))
+                    for item in selected
+                    if item.get("market") == market
+                    and isinstance(item.get("symbol") or item.get("SK"), str)
+                }
                 return sorted(symbols)
 
 

@@ -109,6 +109,40 @@ class DispatcherTests(unittest.TestCase):
         body = json.loads(sqs.calls[0]["Entries"][0]["MessageBody"])
         self.assertEqual((body["market"], body["symbol"]), ("IN", "INFY.NS"))
 
+    def test_discovered_cap_is_global_and_never_excludes_curated_symbols(self):
+        discovered = [
+            {
+                "SK": f"IND{i:03}.NS",
+                "symbol": f"IND{i:03}.NS",
+                "active": True,
+                "market": "IN",
+                "discovered": True,
+                "discoveredAt": f"2026-07-22T12:{i // 60:02}:{i % 60:02}Z",
+            }
+            for i in range(300)
+        ]
+        discovered.append(
+            {
+                "SK": "OLDUS",
+                "symbol": "OLDUS",
+                "active": True,
+                "market": "US",
+                "discovered": True,
+                "discoveredAt": "2020-01-01T00:00:00Z",
+            }
+        )
+        discovered.append(
+            {"SK": "AAPL", "symbol": "AAPL", "active": True, "market": "US"}
+        )
+        sqs = FakeSqs()
+        dispatcher = EodDispatcher(PagedTable([discovered]), sqs, "queue")
+
+        count = dispatcher.dispatch("US")
+
+        self.assertEqual(count, 1)
+        body = json.loads(sqs.calls[0]["Entries"][0]["MessageBody"])
+        self.assertEqual(body["symbol"], "AAPL")
+
 
 if __name__ == "__main__":
     unittest.main()

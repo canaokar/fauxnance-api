@@ -10,6 +10,7 @@ import os
 from typing import Any, Callable, Mapping
 
 from src.api.repository import IdentityRepository, MarketDataRepository
+from src.api.discovery import DiscoveryService, DiscoveryUnavailable, LazyBackfill
 from src.api.quotes import QuoteResolver, QuoteUnavailable, quote_data
 from src.shared.auth import AuthContext, parse_authorizer_context
 from src.shared.market_data import Candle
@@ -45,6 +46,7 @@ class ApiService:
         quota_service: QuotaService,
         *,
         quote_resolver: QuoteResolver | None = None,
+        discovery_service: DiscoveryService | None = None,
         health_markets: tuple[str, ...] = ("US",),
         clock: Callable[[], datetime] | None = None,
     ) -> None:
@@ -52,6 +54,7 @@ class ApiService:
         self._identities = identity_repository
         self._quota = quota_service
         self._quotes_service = quote_resolver
+        self._discovery_service = discovery_service
         self._health_markets = health_markets
         self._clock = clock or (lambda: datetime.now(UTC))
 
@@ -90,12 +93,12 @@ class ApiService:
                 )
             if path.startswith("/v1/symbols/"):
                 symbol = _path_symbol(event, path, "/v1/symbols/")
-                data = self._symbol(symbol)
+                data = self._symbol(symbol, now)
                 return _success(data, now=now, symbol=symbol, source="stored")
             if path.startswith("/v1/candles/"):
                 symbol = _path_symbol(event, path, "/v1/candles/")
                 data, as_of, source, extra_meta = self._candles(
-                    symbol, _query(event), now.date()
+                    symbol, _query(event), now
                 )
                 return _success(
                     data,
@@ -152,8 +155,23 @@ class ApiService:
             "markets": markets,
         }
 
-    def _symbol(self, symbol: str) -> dict[str, Any]:
-        item = self._data.get_symbol(symbol)
+    def _ensure_symbol(
+        self, symbol: str, now: datetime
+    ) -> Mapping[str, Any] | None:
+        if self._discovery_service is None:
+            return self._data.get_symbol(symbol)
+        try:
+            return self._discovery_service.ensure_registered(symbol, now=now)
+        except DiscoveryUnavailable as exc:
+            raise ApiError(
+                503,
+                "UPSTREAM_UNAVAILABLE",
+                "Symbol discovery is temporarily unavailable; retry later.",
+                headers={"Retry-After": "60"},
+            ) from exc
+
+    def _symbol(self, symbol: str, now: datetime) -> dict[str, Any]:
+        item = self._ensure_symbol(symbol, now)
         if not item or item.get("active") is False:
             raise ApiError(404, "SYMBOL_NOT_FOUND", "Symbol was not recognized.")
 
@@ -172,7 +190,7 @@ class ApiService:
         }
 
     def _quote(self, symbol: str, now: datetime):
-        item = self._data.get_symbol(symbol)
+        item = self._ensure_symbol(symbol, now)
         if not item or item.get("active") is False:
             raise ApiError(404, "SYMBOL_NOT_FOUND", "Symbol was not recognized.")
         if self._quotes_service is None:
@@ -222,11 +240,12 @@ class ApiService:
         return {"quotes": items}
 
     def _candles(
-        self, symbol: str, query: Mapping[str, str], today: date
+        self, symbol: str, query: Mapping[str, str], now: datetime
     ) -> tuple[dict[str, Any], str | None, str, dict[str, Any]]:
-        item = self._data.get_symbol(symbol)
+        item = self._ensure_symbol(symbol, now)
         if not item or item.get("active") is False:
             raise ApiError(404, "SYMBOL_NOT_FOUND", "Symbol was not recognized.")
+        today = now.date()
 
         interval = query.get("interval", "1d")
         if interval != "1d":
@@ -402,11 +421,21 @@ def _default_service() -> ApiService:
             finnhub=finnhub,
             finnhub_guard=finnhub_guard,
         )
+        queue_url = os.environ.get("INGEST_QUEUE_URL", "").strip()
+        discovery_service = None
+        if queue_url:
+            discovery_service = DiscoveryService(
+                data_repository,
+                yahoo,
+                yahoo_guard,
+                LazyBackfill(control_table, boto3.client("sqs"), queue_url),
+            )
         _service = ApiService(
             data_repository,
             IdentityRepository(control_table),
             QuotaService(control_table),
             quote_resolver=quote_resolver,
+            discovery_service=discovery_service,
             health_markets=markets,
         )
     return _service
