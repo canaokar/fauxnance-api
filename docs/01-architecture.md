@@ -12,6 +12,7 @@ flowchart LR
         AUTH[Lambda authorizer<br/>key + cohort lookup]
         API[API handler Lambda<br/>Python 3.13]
         ADMIN[Admin handler Lambda]
+        CONSOLE[Console handler Lambda<br/>session auth]
         DDB[(DynamoDB<br/>data + control tables)]
         SCHED[EventBridge scheduled rules<br/>nightly EOD crons]
         DISP[Dispatcher Lambda]
@@ -27,6 +28,7 @@ flowchart LR
     S --> GW --> AUTH --> DDB
     GW --> API --> DDB
     GW --> ADMIN --> DDB
+    GW --> CONSOLE --> DDB
     API -. cache miss .-> U
     API -. upstream dead .-> SYN
     SCHED --> DISP --> Q --> ING --> U
@@ -41,7 +43,7 @@ flowchart LR
 |---|---|---|
 | API front door | **API Gateway HTTP API (v2)** | ~1/3 the cost of REST API; supports Lambda authorizers. We forgo REST-API "usage plans" because our quota model lives in DynamoDB anyway (per-key daily quotas, cohort grouping, instant revoke) — richer than usage plans and portable. |
 | Auth | **Lambda authorizer** (payload v2, response caching 300 s) | Looks up hashed key in the control table, attaches key/cohort context to the request. Cached so most requests skip the lookup. |
-| Compute | **Four Python 3.13 Lambdas** (arm64) | `api`, `authorizer`, `dispatcher`, and `ingest-worker`. The admin API remains deferred to Phase 4. |
+| Compute | **Seven Python 3.13 Lambdas** (arm64) | `api`, `admin`, `console`, `authorizer`, `dispatcher`, `backfillCoordinator`, and `ingestWorker`. The admin API and the session-authenticated instructor console both shipped in Phase 4. |
 | Storage | **DynamoDB, provisioned capacity within the always-free 25 RCU/25 WCU** | EOD-scale data is small (see [03-data-model](03-data-model.md)); provisioned-free beats on-demand pricing at near-zero budget. Switch to on-demand only if throttling appears. |
 | Scheduling | **Four EventBridge scheduled rules** | US, India, and FX run after weekday closes; crypto runs daily. |
 | Ingest fan-out | **SQS standard queue + DLQ** | Dispatcher enqueues one symbol per message for exact retries. DLQ + redrive gives retry semantics and visibility into failed symbols. |
@@ -89,11 +91,17 @@ Each successful market ingest conditionally advances a small market-status item
 (`MARKET#<market>` / `STATUS`). The unauthenticated health route reads those four
 items rather than scanning the symbol registry.
 
-### 4. Admin path
+### 4. Admin and console paths
 
-The public admin API is deferred to Phase 4. Curated backfills are started by the
-operator-only `scripts/enqueue_backfill.py` command; exact unknown symbols use
-the API's lease-protected lazy-backfill path.
+The admin API (`admin` Lambda, admin key required) manages cohorts, student
+keys, symbols, and backfills — see [05-auth-and-quotas](05-auth-and-quotas.md)
+and the [operator CLI guide](operator-cli.md). The instructor console
+(`console` Lambda, session bearer token) is a separate, session-authenticated
+surface over the same cohort and key logic, built for admins and instructors
+who manage classes day to day without the CLI — see [08-console](08-console.md).
+Curated backfills are still started by the operator-only
+`scripts/enqueue_backfill.py` command; exact unknown symbols use the API's
+lease-protected lazy-backfill path.
 
 ## Tenets
 

@@ -5,14 +5,20 @@ A free, serverless market-data API built for bank graduate-training capstone pro
 upstream sources, stores it in DynamoDB, and serves it behind per-student API keys —
 so trainees stop fighting paid data vendors and start building.
 
-**Status: Phase 3 is implemented and deployed to AWS.** The repository includes
+**Status: Phase 4 is implemented and deployed to AWS.** The repository includes
 the authenticated HTTP API, API-key quotas, 515 US symbols, 30 Indian equities,
 12 FX pairs, 12 cryptocurrencies, resumable and lazy historical backfills,
-corporate actions, cache-first quotes, and deterministic synthetic fallback.
-Four market schedules feed the guarded multi-source ingest pipeline through SQS
-with retries and a DLQ. The initial India, FX, and crypto historical backfills
-completed on 2026-07-22. The API uses API Gateway's generated URL:
+corporate actions, cache-first quotes, deterministic synthetic fallback, and
+the admin API and CLI for cohort/key operations. Four market schedules feed
+the guarded multi-source ingest pipeline through SQS with retries and a DLQ.
+The initial India, FX, and crypto historical backfills completed on
+2026-07-22. The API uses API Gateway's generated URL:
 `https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com`.
+
+**New, not yet deployed:** a session-authenticated instructor console (web
+frontend + `console` Lambda) that lets admins and instructors manage classes
+and students without the CLI. Code and tests are complete; see
+[08-console](docs/08-console.md).
 
 | Doc | Contents |
 |---|---|
@@ -24,6 +30,7 @@ completed on 2026-07-22. The API uses API Gateway's generated URL:
 | [05-auth-and-quotas](docs/05-auth-and-quotas.md) | API keys, cohorts, rate limiting, admin API |
 | [06-infrastructure](docs/06-infrastructure.md) | Terraform layout, environments, SSM, cost model |
 | [07-roadmap](docs/07-roadmap.md) | Build phases and future simulation module |
+| [08-console](docs/08-console.md) | Instructor console: auth, routes, and frontend deployment |
 
 ## Local verification
 

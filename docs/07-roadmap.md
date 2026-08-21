@@ -67,13 +67,21 @@ continues after code completion.
   an example of what API documentation should look like.
 - Observability pass: dashboard, alarm runbook.
 - Dry run with a pilot group before the first real cohort.
+- Instructor console *(added after the 2026-07-22 deploy, not yet deployed)*:
+  session-authenticated web app (`console` Lambda + static `frontend/`) so
+  admins and instructors can manage classes and students without the CLI,
+  over the same cohort/key logic as the admin API. See
+  [08-console](08-console.md).
 
 **Exit criterion:** issue 50 keys for a real cohort in < 10 minutes, survive week one without operator intervention.
 
-The admin API, `fnx` CLI, student/operator documentation, recoverable backfill
-operations, pilot harness, and CloudWatch dashboard/alarms are deployed. The
-remaining exit evidence is operational: run the opt-in 50-key pilot with an
-allowlisted admin key, then observe the first real cohort for one week.
+The admin API, `fnx` CLI, student/operator documentation, recoverable
+backfill operations, pilot harness, and CloudWatch dashboard/alarms are built
+and deployed. The instructor console is code-complete with tests passing but
+has not been deployed. Nothing here has been exercised with a live class yet
+— the remaining exit evidence is operational: run the opt-in 50-key pilot
+with an allowlisted admin key, then observe the first real cohort for one
+week.
 
 ## Backlog (v1.x, unscheduled)
 
@@ -98,4 +106,5 @@ Reserved, not designed. Constraints already locked so v1 won't fight it:
   per-key linkage from control-table keys to sim accounts (why `keyId` exists
   as a stable identifier distinct from the hash).
 
-Design doc will be `docs/08-sim-module.md` when the time comes.
+Design doc will be `docs/09-sim-module.md` when the time comes (`08` is now
+the [instructor console](08-console.md)).

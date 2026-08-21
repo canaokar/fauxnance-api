@@ -11,8 +11,9 @@ functions, schedule, and transient ingest messaging.
 | `fauxnance-dev-data` DynamoDB table | Terraform |
 | `fauxnance-dev-control` DynamoDB table | Terraform |
 | `/fauxnance/dev/admin/key_ids` SSM parameter | Terraform |
-| HTTP API, four Lambdas, four EventBridge rules, IAM roles, and logs | Serverless Framework |
+| HTTP API, seven Lambdas, five EventBridge rules, IAM roles, and logs | Serverless Framework |
 | Ingest queue, DLQ, redrive policy, and DLQ-depth alarm | Serverless Framework |
+| CloudWatch operations dashboard and alarms (API 5xx, authorizer/dispatcher/backfill-coordinator errors, ingest queue age) | Serverless Framework |
 
 The table names are fixed for the dev stage and are used directly by both tools.
 There is no output handoff layer.
@@ -51,6 +52,10 @@ API mapping is configured.
 ## Deferred
 
 Remote state, reusable Terraform modules, multiple environment roots, custom
-domains, SNS notifications, dashboards, and budgets remain deferred. The
-optional Alpha Vantage key is written directly to SSM and never Terraform state.
-Finnhub and CoinGecko Demo keys follow the same optional SecureString pattern.
+domains, SNS notifications, and budgets remain deferred. A CloudWatch
+operations dashboard and Lambda/API/queue alarms shipped in Phase 4 (see
+`resources` in `serverless.yml` and the
+[operations runbook](operations-runbook.md)); an SNS-backed paging path on
+top of those alarms is still deferred. The optional Alpha Vantage key is
+written directly to SSM and never Terraform state. Finnhub and CoinGecko
+Demo keys follow the same optional SecureString pattern.

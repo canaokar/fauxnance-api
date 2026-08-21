@@ -35,13 +35,13 @@ domain. All times and daily quotas use UTC.
 |---|---|
 | API `Count`, `4xx`, `5xx` | `Count` is demand. Occasional `4xx` is expected from missing keys, validation, and quotas; correlate a sustained rise with route/status access logs. Any `5xx` needs investigation. |
 | API `Latency`, `IntegrationLatency` | Compare p95 values. Both rising points to Lambda or its dependencies; high `Latency` with normal integration latency points to API Gateway/front-door overhead. Compare against the API Lambda's 15-second timeout. |
-| Lambda `Errors`, `Throttles`, `Duration` | Errors in `api`, `admin`, `authorizer`, `dispatcher`, or `backfillCoordinator` are control-path failures. Throttles mean concurrency pressure. p95 duration approaching a function timeout predicts failures. The ingest worker reports per-record failures through SQS, so queue age and DLQ depth are more authoritative than its Lambda `Errors`. |
+| Lambda `Errors`, `Throttles`, `Duration` | Errors in `api`, `admin`, `console`, `authorizer`, `dispatcher`, or `backfillCoordinator` are control-path failures. Throttles mean concurrency pressure. p95 duration approaching a function timeout predicts failures. The ingest worker reports per-record failures through SQS, so queue age and DLQ depth are more authoritative than its Lambda `Errors`. |
 | SQS visible, in-flight, oldest age | Visible is backlog; in-flight is work held by the two ingest workers. A short burst after a schedule or backfill is normal. Rising visible count and oldest age with flat in-flight count suggests a disabled or failing event-source mapping. |
 | SQS DLQ | Any message in `fauxnance-api-dev-ingest-dlq` needs action. This is the service's only DLQ. |
 | DynamoDB consumption and throttles | Compare consumed capacity with the provisioned capacity for `fauxnance-dev-data` and `fauxnance-dev-control`. Any `ReadThrottleEvents` or `WriteThrottleEvents` during normal cohort traffic warrants investigation; correlate with Lambda duration and API 5xx. |
 
 HTTP access logs are in `/aws/http-api/fauxnance-api-dev`. Lambda logs are in
-`/aws/lambda/fauxnance-api-dev-{api,admin,authorizer,dispatcher,backfillCoordinator,ingestWorker}`
+`/aws/lambda/fauxnance-api-dev-{api,admin,console,authorizer,dispatcher,backfillCoordinator,ingestWorker}`
 with 14-day retention.
 
 ## Alarm triage

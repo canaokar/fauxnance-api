@@ -225,6 +225,17 @@ ingestion conditionally advances `latestEod`. It does not scan symbol metadata.
 | `POST /v1/admin/ingest/backfill` | Trigger historical backfill `{symbols[] \| universe, from, to}` → `jobId` |
 | `GET /v1/admin/ingest/jobs/{jobId}` | Backfill progress `{state, done, failed[], total}` where counts and failures are symbol-year work units |
 
+## Instructor console
+
+`/v1/console/*` is a separate surface from everything above: it is
+**session-authenticated** (`Authorization: Bearer <token>` from
+`POST /v1/console/login`), not `X-Api-Key`-authenticated, and it is served by
+its own Lambda scoped to the control table only. It lets admins and
+instructors manage console accounts, classes, and students through a web
+frontend instead of the CLI, calling into the same cohort/key logic as the
+admin endpoints above. See [08-console](08-console.md) for the full route
+table, auth model, and authorization matrix.
+
 ## Error codes
 
 | HTTP | `code` | When |
