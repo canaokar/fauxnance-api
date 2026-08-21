@@ -48,6 +48,7 @@ provider:
       allowedHeaders:
         - Content-Type
         - X-Api-Key
+        - Authorization
       allowedMethods:
         - GET
         - POST
@@ -256,6 +257,74 @@ functions:
           path: /v1/admin/ingest/jobs/{jobId}
           authorizer:
             name: apiKeyAuthorizer
+
+  console:
+    handler: src.console.handler.handler
+    description: Instructor console login, session, and class administration API
+    memorySize: 512
+    timeout: 15
+    environment:
+      CONTROL_TABLE: ${self:custom.controlTableName}
+    package:
+      patterns:
+        - src/__init__.py
+        - src/console/**
+        - src/admin/**
+        - src/shared/**
+    iamRoleStatementsName: ${self:service}-${sls:stage}-console-role
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:BatchGetItem
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
+          - dynamodb:TransactWriteItems
+        Resource:
+          - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
+    events:
+      - httpApi:
+          method: POST
+          path: /v1/console/login
+      - httpApi:
+          method: POST
+          path: /v1/console/logout
+      - httpApi:
+          method: GET
+          path: /v1/console/me
+      - httpApi:
+          method: GET
+          path: /v1/console/users
+      - httpApi:
+          method: POST
+          path: /v1/console/users
+      - httpApi:
+          method: PATCH
+          path: /v1/console/users/{userId}
+      - httpApi:
+          method: GET
+          path: /v1/console/classes
+      - httpApi:
+          method: POST
+          path: /v1/console/classes
+      - httpApi:
+          method: GET
+          path: /v1/console/classes/{cohortId}
+      - httpApi:
+          method: POST
+          path: /v1/console/classes/{cohortId}/instructors
+      - httpApi:
+          method: DELETE
+          path: /v1/console/classes/{cohortId}/instructors/{userId}
+      - httpApi:
+          method: POST
+          path: /v1/console/classes/{cohortId}/students
+      - httpApi:
+          method: DELETE
+          path: /v1/console/classes/{cohortId}/students/{keyId}
 
   backfillCoordinator:
     handler: src.admin.coordinator.handler
