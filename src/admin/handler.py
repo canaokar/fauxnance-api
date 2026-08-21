@@ -511,13 +511,14 @@ def _default_service() -> AdminService:
         import boto3
 
         dynamodb = boto3.resource("dynamodb")
+        client = boto3.client("dynamodb")
         table = dynamodb.Table(os.environ["CONTROL_TABLE"])
         data_table = dynamodb.Table(os.environ["DATA_TABLE"])
         coordinator = LambdaCoordinatorInvoker(
             boto3.client("lambda"), os.environ["BACKFILL_COORDINATOR_FUNCTION"]
         )
         _service = AdminService(
-            DynamoAdminRepository(table, dynamodb, data_table),
+            DynamoAdminRepository(table, dynamodb, data_table, client=client),
             stage=os.environ.get("STAGE", "dev"),
             coordinator=coordinator,
         )

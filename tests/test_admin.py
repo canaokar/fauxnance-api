@@ -3,10 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 import json
+import os
 import unittest
+from unittest import mock
 
 from boto3.dynamodb.types import TypeDeserializer
 
+import src.admin.handler as admin_handler
 from src.admin.handler import AdminService, lambda_handler
 from src.admin.repository import DynamoAdminRepository
 
@@ -526,6 +529,31 @@ def _aws_fakes():
 def _deserialize(item):
     deserializer = TypeDeserializer()
     return {key: deserializer.deserialize(value) for key, value in item.items()}
+
+
+class DefaultServiceRepositoryClientTests(unittest.TestCase):
+    def test_default_service_builds_repository_with_standalone_dynamodb_client(self):
+        resource = mock.Mock(name="dynamodb_resource")
+        low_level_client = mock.Mock(name="dynamodb_client")
+        clients = {"dynamodb": low_level_client, "lambda": mock.Mock(name="lambda_client")}
+
+        with mock.patch.object(
+            admin_handler, "_service", None
+        ), mock.patch("boto3.resource", return_value=resource), mock.patch(
+            "boto3.client", side_effect=lambda name: clients[name]
+        ) as client_mock, mock.patch.dict(
+            os.environ,
+            {
+                "CONTROL_TABLE": "control",
+                "DATA_TABLE": "data",
+                "BACKFILL_COORDINATOR_FUNCTION": "fn",
+            },
+        ):
+            service = admin_handler._default_service()
+
+        client_mock.assert_any_call("dynamodb")
+        self.assertIs(service._repository._client, low_level_client)
+        self.assertIsNot(service._repository._client, resource.meta.client)
 
 
 if __name__ == "__main__":

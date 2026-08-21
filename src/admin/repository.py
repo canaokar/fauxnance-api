@@ -12,10 +12,23 @@ class RepositoryConflict(RuntimeError):
 
 
 class DynamoAdminRepository:
-    def __init__(self, table: Any, dynamodb: Any, data_table: Any | None = None) -> None:
+    def __init__(
+        self,
+        table: Any,
+        dynamodb: Any,
+        data_table: Any | None = None,
+        *,
+        client: Any | None = None,
+    ) -> None:
         self._table = table
         self._dynamodb = dynamodb
-        self._client = dynamodb.meta.client
+        # A boto3 resource's `.meta.client` auto-serializes plain Python
+        # values into DynamoDB AttributeValues. `_transact`/`_put`/`_update`
+        # below already pre-serialize with TypeSerializer, so using
+        # `.meta.client` here double-serializes every transactional write
+        # and corrupts it. Real AWS callers must pass a genuine low-level
+        # client (boto3.client("dynamodb")) via `client`.
+        self._client = client if client is not None else dynamodb.meta.client
         self._data_table = data_table
 
     def create_cohort(self, item: Mapping[str, Any]) -> None:

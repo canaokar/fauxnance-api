@@ -149,10 +149,11 @@ def _default_service() -> ConsoleService:
         import boto3
 
         dynamodb = boto3.resource("dynamodb")
+        client = boto3.client("dynamodb")
         control_table = dynamodb.Table(os.environ["CONTROL_TABLE"])
-        admin_repository = DynamoAdminRepository(control_table, dynamodb)
+        admin_repository = DynamoAdminRepository(control_table, dynamodb, client=client)
         _service = ConsoleService(
-            DynamoConsoleRepository(control_table, dynamodb),
+            DynamoConsoleRepository(control_table, dynamodb, client=client),
             AdminService(admin_repository, stage=os.environ.get("STAGE", "dev")),
             admin_repository,
         )

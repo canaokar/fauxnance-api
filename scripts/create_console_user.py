@@ -14,11 +14,18 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime
 import os
+import pathlib
 import secrets
 import string
 import sys
 from typing import Any, Sequence
 import uuid
+
+if __package__ in (None, ""):
+    # Allow `python scripts/create_console_user.py` as documented, not just
+    # `python -m scripts.create_console_user`; unlike bootstrap_admin.py this
+    # script reuses the console's own hashing and repository code.
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.admin.repository import RepositoryConflict
 from src.console.passwords import hash_password, validate_password_strength
@@ -160,9 +167,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     session = boto3.Session(profile_name=args.profile, region_name=args.region)
     dynamodb = session.resource("dynamodb")
+    client = session.client("dynamodb")
     table_name = args.table or f"fauxnance-{args.stage}-control"
     table = dynamodb.Table(table_name)
-    repository = DynamoConsoleRepository(table, dynamodb)
+    repository = DynamoConsoleRepository(table, dynamodb, client=client)
 
     return _run(args, repository, password=password, generated=generated)
 
