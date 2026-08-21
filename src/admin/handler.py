@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 from datetime import UTC, date, datetime
+from decimal import Decimal
 import hashlib
 import json
 import logging
@@ -185,7 +186,7 @@ class AdminService:
         limit = _limit(query.get("limit"), default=50, maximum=200)
         offset = _offset_cursor(query.get("cursor"))
         cohorts = sorted(
-            self._repository.all_cohorts(),
+            (_with_stored_int(item, "defaultDailyQuota") for item in self._repository.all_cohorts()),
             key=lambda item: (str(item.get("createdAt", "")), str(item.get("cohortId", item.get("SK", "")))),
         )
         page = cohorts[offset : offset + limit]
@@ -278,7 +279,10 @@ class AdminService:
         cursor = _decode_key_cursor(query.get("cursor"), cohort_id=cohort_id)
         items, next_key = self._repository.query_cohort_keys(cohort_id, limit=limit, cursor=cursor)
         usage = self._repository.usage_counts([str(item["keyId"]) for item in items], now.date())
-        keys = [_key_data(item, usage.get(str(item["keyId"]), 0)) for item in items]
+        keys = [
+            _key_data(_with_stored_int(item, "dailyQuota"), usage.get(str(item["keyId"]), 0))
+            for item in items
+        ]
         return {"cohortId": cohort_id, "keys": keys, "cursor": _encode_key_cursor(next_key) if next_key else None}
 
     def revoke_key(self, key_id: str, now: datetime) -> dict[str, Any]:
@@ -468,7 +472,7 @@ class AdminService:
         item = self._repository.get_cohort(cohort_id)
         if not item:
             raise AdminError(404, "COHORT_NOT_FOUND", "Cohort was not found.")
-        return item
+        return _with_stored_int(item, "defaultDailyQuota")
 
     def cohort_stats(self, cohort_id: str, usage_date: date) -> dict[str, Any]:
         items, cursor = self._repository.query_cohort_keys(cohort_id)
@@ -630,9 +634,38 @@ def _student_email(value: object) -> str:
 
 
 def _quota(value: object) -> int:
+    """Validate a quota supplied directly by a caller in a request body.
+
+    A JSON request body can never contain a ``Decimal``, so this stays strict:
+    only a plain ``int`` (never ``bool``) in range is accepted.
+    """
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 100_000:
         raise AdminError(400, "VALIDATION_ERROR", "daily quota must be an integer from 1 to 100000.")
     return value
+
+
+def _stored_int(value: object, field: str) -> int:
+    """Coerce an integer field read back from DynamoDB.
+
+    boto3 returns every stored number as ``Decimal``, never ``int``. This
+    accepts ``int`` or an integral ``Decimal`` and rejects ``bool``,
+    non-integral ``Decimal``, and anything else -- an invariant violation in
+    stored data, not a caller error.
+    """
+    if isinstance(value, bool):
+        raise AdminError(500, "INTERNAL_ERROR", f"stored {field} is invalid.")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, Decimal) and value == value.to_integral_value():
+        return int(value)
+    raise AdminError(500, "INTERNAL_ERROR", f"stored {field} is invalid.")
+
+
+def _with_stored_int(item: Mapping[str, Any], field: str) -> dict[str, Any]:
+    """Return a shallow copy of ``item`` with ``field`` coerced via ``_stored_int``."""
+    if field not in item or item[field] is None:
+        return dict(item)
+    return {**item, field: _stored_int(item[field], field)}
 
 
 def _expiry(value: object, *, today: date) -> str:

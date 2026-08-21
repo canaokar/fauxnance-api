@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 import hashlib
 import re
 import secrets
@@ -477,7 +478,7 @@ class ConsoleService:
                 "studentName": item.get("studentName"),
                 "studentEmail": item.get("studentEmail"),
                 "status": item.get("status"),
-                "dailyQuota": item.get("dailyQuota"),
+                "dailyQuota": _stored_quota(item.get("dailyQuota")),
                 "usedToday": usage.get(key_id, 0),
                 "createdAt": item.get("createdAt"),
             }
@@ -555,6 +556,24 @@ def _user_data(item: Mapping[str, Any], *, class_count: int | None = None) -> di
     if class_count is not None:
         data["classCount"] = class_count
     return data
+
+
+def _stored_quota(value: object) -> int | None:
+    """Coerce a dailyQuota field read back from DynamoDB.
+
+    boto3 returns every stored number as ``Decimal``, never ``int``. Accepts
+    ``int`` or an integral ``Decimal``; rejects ``bool``, a non-integral
+    ``Decimal``, and anything else as corrupt stored data.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ConsoleError(500, "INTERNAL_ERROR", "stored dailyQuota is invalid.")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, Decimal) and value == value.to_integral_value():
+        return int(value)
+    raise ConsoleError(500, "INTERNAL_ERROR", "stored dailyQuota is invalid.")
 
 
 def _email(value: object) -> str:

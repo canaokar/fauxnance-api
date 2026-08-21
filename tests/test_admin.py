@@ -12,6 +12,7 @@ from boto3.dynamodb.types import TypeDeserializer
 import src.admin.handler as admin_handler
 from src.admin.handler import AdminService, lambda_handler
 from src.admin.repository import DynamoAdminRepository
+from tests.dynamo_fidelity import dynamo_roundtrip
 
 
 NOW = datetime(2026, 7, 22, 12, tzinfo=UTC)
@@ -66,18 +67,20 @@ class FakeRepository:
 
     def get_cohort(self, cohort_id):
         self.calls.append(("get_cohort", cohort_id))
-        return self.cohorts.get(cohort_id)
+        item = self.cohorts.get(cohort_id)
+        return dynamo_roundtrip(item) if item is not None else None
 
     def update_cohort(self, item):
         self.updated.append(dict(item))
         self.cohorts[item["cohortId"]] = dict(item)
 
     def all_cohorts(self):
-        return list(self.cohorts.values())
+        return [dynamo_roundtrip(item) for item in self.cohorts.values()]
 
     def query_cohort_keys(self, cohort_id, *, limit=None, cursor=None):
         self.calls.append(("keys", cohort_id, limit, cursor))
-        return list(self.keys.get(cohort_id, []))[:limit], None
+        items = [dynamo_roundtrip(item) for item in self.keys.get(cohort_id, [])]
+        return items[:limit], None
 
     def usage_counts(self, key_ids, usage_date):
         self.calls.append(("usage", tuple(key_ids), usage_date))
@@ -87,7 +90,8 @@ class FakeRepository:
         self.issued.append((dict(cohort), [dict(record) for record in records]))
 
     def get_key_lookup(self, key_id):
-        return self.lookups.get(key_id)
+        item = self.lookups.get(key_id)
+        return dynamo_roundtrip(item) if item is not None else None
 
     def revoke_key(self, lookup, *, revoked_at):
         self.revoked.append((dict(lookup), revoked_at))

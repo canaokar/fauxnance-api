@@ -7,6 +7,7 @@ from src.admin.handler import AdminService
 from src.admin.repository import RepositoryConflict
 from src.console.passwords import hash_password
 from src.console.service import ConsoleError, ConsoleService
+from tests.dynamo_fidelity import dynamo_roundtrip
 
 
 NOW = datetime(2026, 8, 21, 12, tzinfo=UTC)
@@ -154,16 +155,16 @@ class FakeAdminRepository:
 
     def get_cohort(self, cohort_id):
         item = self.cohorts.get(cohort_id)
-        return dict(item) if item is not None else None
+        return dynamo_roundtrip(item) if item is not None else None
 
     def update_cohort(self, item):
         self.cohorts[item["cohortId"]] = dict(item)
 
     def all_cohorts(self):
-        return [dict(item) for item in self.cohorts.values()]
+        return [dynamo_roundtrip(item) for item in self.cohorts.values()]
 
     def query_cohort_keys(self, cohort_id, *, limit=None, cursor=None):
-        items = list(self.keys_by_cohort.get(cohort_id, []))
+        items = [dynamo_roundtrip(item) for item in self.keys_by_cohort.get(cohort_id, [])]
         if limit is not None:
             items = items[:limit]
         return items, None
@@ -198,7 +199,7 @@ class FakeAdminRepository:
 
     def get_key_lookup(self, key_id):
         item = self.key_lookup.get(key_id)
-        return dict(item) if item is not None else None
+        return dynamo_roundtrip(item) if item is not None else None
 
     def revoke_key(self, lookup, *, revoked_at):
         key_id = lookup["keyId"]
@@ -528,6 +529,18 @@ class LabelGenerationTests(unittest.TestCase):
                 self._issue([f"Student {i}" for i in range(26)])
             self.assertEqual(ctx.exception.status, 400)
             self.assertEqual(ctx.exception.code, "VALIDATION_ERROR")
+
+    def test_get_class_students_dailyquota_is_json_safe_int_not_decimal(self):
+        # The repository hands back dailyQuota as Decimal, the way boto3
+        # actually does; get_class must coerce it back to int so the console
+        # HTTP handler's json.dumps does not raise.
+        result = self._issue(["Amara Okafor"])
+        key_id = result["issued"][0]["keyId"]
+
+        detail = self.service.get_class(self.admin, "cohort-1", NOW)
+
+        student = next(s for s in detail["students"] if s["keyId"] == key_id)
+        self.assertIsInstance(student["dailyQuota"], int)
 
 
 if __name__ == "__main__":
