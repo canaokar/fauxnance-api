@@ -1,3 +1,7 @@
+# Claude
+CLAUDE.md
+AGENTS.md
+
 # Python
 __pycache__/
 *.py[cod]
@@ -30,3 +34,5 @@ override.tf.json
 .DS_Store
 .idea/
 .vscode/
+
+references/
