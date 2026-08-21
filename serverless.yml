@@ -190,6 +190,7 @@ functions:
           - dynamodb:PutItem
           - dynamodb:UpdateItem
           - dynamodb:TransactWriteItems
+          - dynamodb:ConditionCheckItem
         Resource:
           - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
       - Effect: Allow
@@ -283,6 +284,7 @@ functions:
           - dynamodb:UpdateItem
           - dynamodb:DeleteItem
           - dynamodb:TransactWriteItems
+          - dynamodb:ConditionCheckItem
         Resource:
           - arn:${aws:partition}:dynamodb:${aws:region}:${self:custom.awsAccountId}:table/${self:custom.controlTableName}
     events:
