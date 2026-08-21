@@ -115,23 +115,23 @@ class AdminService:
             path = str(event.get("rawPath") or event.get("path") or "")
             if path == "/v1/admin/cohorts":
                 if method == "POST":
-                    return _success(self._create_cohort(_body(event), now), now, status=201)
+                    return _success(self.create_cohort(_body(event), now), now, status=201)
                 if method == "GET":
-                    return _success(self._list_cohorts(_query(event), now), now)
+                    return _success(self.list_cohorts(_query(event), now), now)
             if path.startswith("/v1/admin/cohorts/"):
                 cohort_id = _path_id(event, path, "/v1/admin/cohorts/", "cohortId")
                 if method == "GET":
-                    return _success(self._get_cohort(cohort_id, now), now)
+                    return _success(self.get_cohort_detail(cohort_id, now), now)
                 if method == "PATCH":
                     return _success(self._patch_cohort(cohort_id, _body(event), now), now)
             if path == "/v1/admin/keys":
                 if method == "POST":
-                    return _success(self._issue_keys(_body(event), now), now, status=201)
+                    return _success(self.issue_keys(_body(event), now), now, status=201)
                 if method == "GET":
-                    return _success(self._list_keys(_query(event), now), now)
+                    return _success(self.list_keys(_query(event), now), now)
             if path.startswith("/v1/admin/keys/") and method == "DELETE":
                 key_id = _path_id(event, path, "/v1/admin/keys/", "keyId")
-                return _success(self._revoke_key(key_id, now), now)
+                return _success(self.revoke_key(key_id, now), now)
             if path == "/v1/admin/symbols" and method == "POST":
                 return _success(
                     self._register_symbols(_body(event)), now, status=201
@@ -154,7 +154,7 @@ class AdminService:
         except RepositoryConflict as exc:
             return _error(409, "CONFLICT", str(exc))
 
-    def _create_cohort(self, body: Mapping[str, Any], now: datetime) -> dict[str, Any]:
+    def create_cohort(self, body: Mapping[str, Any], now: datetime) -> dict[str, Any]:
         _exact_fields(body, {"name", "defaultDailyQuota", "expiresAt"})
         name = _name(body["name"])
         quota = _quota(body["defaultDailyQuota"])
@@ -175,12 +175,12 @@ class AdminService:
         self._repository.create_cohort(item)
         return _cohort_data(item)
 
-    def _get_cohort(self, cohort_id: str, now: datetime) -> dict[str, Any]:
-        item = self._required_cohort(cohort_id)
-        stats = self._cohort_stats(cohort_id, now.date())
+    def get_cohort_detail(self, cohort_id: str, now: datetime) -> dict[str, Any]:
+        item = self.required_cohort(cohort_id)
+        stats = self.cohort_stats(cohort_id, now.date())
         return {**_cohort_data(item), **stats}
 
-    def _list_cohorts(self, query: Mapping[str, str], now: datetime) -> dict[str, Any]:
+    def list_cohorts(self, query: Mapping[str, str], now: datetime) -> dict[str, Any]:
         _allowed_query(query, {"limit", "cursor"})
         limit = _limit(query.get("limit"), default=50, maximum=200)
         offset = _offset_cursor(query.get("cursor"))
@@ -192,7 +192,7 @@ class AdminService:
         values = []
         for item in page:
             cohort_id = str(item.get("cohortId") or item.get("SK"))
-            values.append({**_cohort_data({**item, "cohortId": cohort_id}), **self._cohort_stats(cohort_id, now.date())})
+            values.append({**_cohort_data({**item, "cohortId": cohort_id}), **self.cohort_stats(cohort_id, now.date())})
         next_cursor = _encode_offset(offset + limit) if offset + limit < len(cohorts) else None
         return {"cohorts": values, "cursor": next_cursor}
 
@@ -200,7 +200,7 @@ class AdminService:
         allowed = {"name", "defaultDailyQuota", "expiresAt", "status"}
         if not body or not set(body).issubset(allowed):
             raise AdminError(400, "VALIDATION_ERROR", "PATCH requires only supported cohort fields.")
-        existing = dict(self._required_cohort(cohort_id))
+        existing = dict(self.required_cohort(cohort_id))
         if "name" in body:
             existing["name"] = _name(body["name"])
         if "defaultDailyQuota" in body:
@@ -215,20 +215,31 @@ class AdminService:
         self._repository.update_cohort(existing)
         return _cohort_data(existing)
 
-    def _issue_keys(self, body: Mapping[str, Any], now: datetime) -> dict[str, Any]:
-        allowed = {"cohortId", "labels", "count", "dailyQuota"}
+    def issue_keys(self, body: Mapping[str, Any], now: datetime) -> dict[str, Any]:
+        allowed = {"cohortId", "labels", "students", "count", "dailyQuota"}
         if not set(body).issubset(allowed) or "cohortId" not in body:
             raise AdminError(400, "VALIDATION_ERROR", "Key issuance fields are invalid.")
         cohort_id = _identifier_value(body["cohortId"], "cohortId")
         has_labels = "labels" in body
+        has_students = "students" in body
         has_count = "count" in body
-        if has_labels == has_count:
-            raise AdminError(400, "VALIDATION_ERROR", "Provide exactly one of labels or count.")
+        if sum((has_labels, has_students, has_count)) != 1:
+            raise AdminError(400, "VALIDATION_ERROR", "Provide exactly one of labels, students, or count.")
+        identities: list[dict[str, str]] = []
         if has_labels:
             raw_labels = body["labels"]
             if not isinstance(raw_labels, list) or not 1 <= len(raw_labels) <= 25:
                 raise AdminError(400, "VALIDATION_ERROR", "labels must contain 1 to 25 entries.")
             labels = [_label(value) for value in raw_labels]
+        elif has_students:
+            raw_students = body["students"]
+            if not isinstance(raw_students, list) or not 1 <= len(raw_students) <= 25:
+                raise AdminError(400, "VALIDATION_ERROR", "students must contain 1 to 25 entries.")
+            labels = []
+            for value in raw_students:
+                label, name, email = _student_identity(value)
+                labels.append(label)
+                identities.append({"studentName": name, "studentEmail": email})
         else:
             count = body["count"]
             if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 25:
@@ -237,27 +248,32 @@ class AdminService:
         if len({label.casefold() for label in labels}) != len(labels):
             raise AdminError(400, "VALIDATION_ERROR", "labels must be unique.")
 
-        cohort = dict(self._required_cohort(cohort_id))
+        cohort = dict(self.required_cohort(cohort_id))
         if cohort.get("status") != "active" or is_expired(cohort.get("expiresAt"), now=now):
             raise AdminError(409, "COHORT_INACTIVE", "The cohort is inactive or expired.")
         quota = _quota(body["dailyQuota"]) if "dailyQuota" in body else _quota(cohort.get("defaultDailyQuota"))
         timestamp = _timestamp(now)
         issued: list[dict[str, Any]] = []
         records: list[dict[str, Any]] = []
-        for label in labels:
+        for index, label in enumerate(labels):
             plaintext = self._plaintext_key()
             key_id = self._identifier("student")
-            records.append({"keyId": key_id, "keyHash": hashlib.sha256(plaintext.encode()).hexdigest(), "label": label, "dailyQuota": quota, "createdAt": timestamp})
-            issued.append({"keyId": key_id, "label": label, "key": plaintext})
+            record = {"keyId": key_id, "keyHash": hashlib.sha256(plaintext.encode()).hexdigest(), "label": label, "dailyQuota": quota, "createdAt": timestamp}
+            issued_entry = {"keyId": key_id, "label": label, "key": plaintext}
+            if identities:
+                record.update(identities[index])
+                issued_entry.update(identities[index])
+            records.append(record)
+            issued.append(issued_entry)
         self._repository.issue_keys({**cohort, "cohortId": cohort_id}, records)
         return {"cohortId": cohort_id, "keys": issued}
 
-    def _list_keys(self, query: Mapping[str, str], now: datetime) -> dict[str, Any]:
+    def list_keys(self, query: Mapping[str, str], now: datetime) -> dict[str, Any]:
         _allowed_query(query, {"cohortId", "limit", "cursor"})
         if "cohortId" not in query:
             raise AdminError(400, "VALIDATION_ERROR", "cohortId is required.")
         cohort_id = _identifier_value(query["cohortId"], "cohortId")
-        self._required_cohort(cohort_id)
+        self.required_cohort(cohort_id)
         limit = _limit(query.get("limit"), default=50, maximum=200)
         cursor = _decode_key_cursor(query.get("cursor"), cohort_id=cohort_id)
         items, next_key = self._repository.query_cohort_keys(cohort_id, limit=limit, cursor=cursor)
@@ -265,7 +281,7 @@ class AdminService:
         keys = [_key_data(item, usage.get(str(item["keyId"]), 0)) for item in items]
         return {"cohortId": cohort_id, "keys": keys, "cursor": _encode_key_cursor(next_key) if next_key else None}
 
-    def _revoke_key(self, key_id: str, now: datetime) -> dict[str, Any]:
+    def revoke_key(self, key_id: str, now: datetime) -> dict[str, Any]:
         lookup = self._repository.get_key_lookup(key_id)
         if not lookup:
             raise AdminError(404, "KEY_NOT_FOUND", "API key was not found.")
@@ -448,13 +464,13 @@ class AdminService:
             data["preparationError"] = job["preparationError"]
         return data
 
-    def _required_cohort(self, cohort_id: str) -> Mapping[str, Any]:
+    def required_cohort(self, cohort_id: str) -> Mapping[str, Any]:
         item = self._repository.get_cohort(cohort_id)
         if not item:
             raise AdminError(404, "COHORT_NOT_FOUND", "Cohort was not found.")
         return item
 
-    def _cohort_stats(self, cohort_id: str, usage_date: date) -> dict[str, Any]:
+    def cohort_stats(self, cohort_id: str, usage_date: date) -> dict[str, Any]:
         items, cursor = self._repository.query_cohort_keys(cohort_id)
         while cursor:
             page, cursor = self._repository.query_cohort_keys(cohort_id, cursor=cursor)
@@ -587,6 +603,29 @@ def _label(value: object) -> str:
             400, "VALIDATION_ERROR", "Each label must be 1 to 120 safe characters."
         )
     return label
+
+
+def _student_identity(value: object) -> tuple[str, str, str]:
+    if not isinstance(value, Mapping) or set(value) != {"label", "name", "email"}:
+        raise AdminError(
+            400, "VALIDATION_ERROR", "Each student must include label, name, and email."
+        )
+    label = _label(value["label"])
+    name = _name(value["name"])
+    email = _student_email(value["email"])
+    return label, name, email
+
+
+def _student_email(value: object) -> str:
+    if not isinstance(value, str):
+        raise AdminError(400, "VALIDATION_ERROR", "email is invalid.")
+    email = value.strip()
+    if not 1 <= len(email) <= 254 or email.count("@") != 1:
+        raise AdminError(400, "VALIDATION_ERROR", "email is invalid.")
+    local, _, domain = email.partition("@")
+    if not local or not domain:
+        raise AdminError(400, "VALIDATION_ERROR", "email is invalid.")
+    return email
 
 
 def _quota(value: object) -> int:

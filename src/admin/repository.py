@@ -182,6 +182,11 @@ class DynamoAdminRepository:
                 "createdAt": record["createdAt"],
                 "expiresAt": cohort["expiresAt"],
             }
+            identity = {
+                key: record[key]
+                for key in ("studentName", "studentEmail")
+                if isinstance(record.get(key), str) and record[key]
+            }
             items.extend(
                 [
                     _put(
@@ -202,7 +207,7 @@ class DynamoAdminRepository:
                     ),
                     _put(
                         self._table.name,
-                        {"PK": f"COHORT#{cohort_id}", "SK": f"KEY#{key_id}", **common},
+                        {"PK": f"COHORT#{cohort_id}", "SK": f"KEY#{key_id}", **common, **identity},
                         conditional=True,
                     ),
                 ]

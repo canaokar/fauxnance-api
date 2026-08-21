@@ -325,6 +325,68 @@ class AdminServiceTests(unittest.TestCase):
         missing = self.invoke(event("DELETE", "/v1/admin/keys/student-missing"))
         self.assertEqual(missing["statusCode"], 404)
 
+    def test_issue_keys_without_student_identity_omits_student_fields(self):
+        response = self.invoke(
+            event(
+                "POST",
+                "/v1/admin/keys",
+                body={"cohortId": "cohort-existing", "labels": ["amara"]},
+            )
+        )
+        self.assertEqual(response["statusCode"], 201)
+        data = decoded(response)["data"]
+        self.assertNotIn("studentName", data["keys"][0])
+        self.assertNotIn("studentEmail", data["keys"][0])
+        _, records = self.repository.issued[0]
+        self.assertNotIn("studentName", records[0])
+        self.assertNotIn("studentEmail", records[0])
+
+    def test_issue_keys_with_student_identity_returns_it_and_forwards_it(self):
+        response = self.invoke(
+            event(
+                "POST",
+                "/v1/admin/keys",
+                body={
+                    "cohortId": "cohort-existing",
+                    "students": [{"label": "amara", "name": "Amara Diallo", "email": "amara@example.com"}],
+                },
+            )
+        )
+        self.assertEqual(response["statusCode"], 201)
+        data = decoded(response)["data"]
+        self.assertEqual(data["keys"][0]["studentName"], "Amara Diallo")
+        self.assertEqual(data["keys"][0]["studentEmail"], "amara@example.com")
+        _, records = self.repository.issued[0]
+        self.assertEqual(records[0]["studentName"], "Amara Diallo")
+        self.assertEqual(records[0]["studentEmail"], "amara@example.com")
+
+    def test_issue_keys_rejects_malformed_students_and_mixed_fields(self):
+        bodies = [
+            {"cohortId": "cohort-existing", "students": []},
+            {"cohortId": "cohort-existing", "students": [{"label": "a", "name": "A"}]},
+            {"cohortId": "cohort-existing", "students": [{"label": "a", "name": "A", "email": "bad"}]},
+            {"cohortId": "cohort-existing", "students": [{"label": "a", "name": "", "email": "a@b.com"}]},
+            {"cohortId": "cohort-existing", "students": [{"label": "a", "name": "A", "email": "a@b.com"}], "labels": ["a"]},
+        ]
+        for body in bodies:
+            with self.subTest(body=body):
+                self.assertEqual(
+                    self.invoke(event("POST", "/v1/admin/keys", body=body))["statusCode"],
+                    400,
+                )
+
+    def test_public_method_names_are_directly_callable(self):
+        self.assertTrue(hasattr(self.service, "create_cohort"))
+        self.assertTrue(hasattr(self.service, "get_cohort_detail"))
+        self.assertTrue(hasattr(self.service, "list_cohorts"))
+        self.assertTrue(hasattr(self.service, "issue_keys"))
+        self.assertTrue(hasattr(self.service, "list_keys"))
+        self.assertTrue(hasattr(self.service, "revoke_key"))
+        self.assertTrue(hasattr(self.service, "required_cohort"))
+        self.assertTrue(hasattr(self.service, "cohort_stats"))
+        detail = self.service.get_cohort_detail("cohort-existing", NOW)
+        self.assertEqual(detail["cohortId"], "cohort-existing")
+
     def test_malformed_json_and_unknown_routes_use_common_error_envelope(self):
         malformed = event("POST", "/v1/admin/cohorts")
         malformed["body"] = "{"
@@ -376,6 +438,44 @@ class DynamoAdminRepositoryTests(unittest.TestCase):
             ["KEY#hash-1", "KEYID#student-1", "COHORT#cohort-1", "KEY#hash-2", "KEYID#student-2", "COHORT#cohort-1"],
         )
         self.assertTrue(all("ConditionExpression" in write["Put"] for write in writes[1:]))
+
+    def test_key_issue_puts_student_identity_only_on_cohort_index_item(self):
+        table, dynamodb, client = _aws_fakes()
+        repository = DynamoAdminRepository(table, dynamodb)
+        cohort = {"cohortId": "cohort-1", "expiresAt": "2026-12-31"}
+        records = [
+            {
+                "keyId": "student-1",
+                "keyHash": "hash-1",
+                "label": "one",
+                "dailyQuota": 2000,
+                "createdAt": "now",
+                "studentName": "Amara Diallo",
+                "studentEmail": "amara@example.com",
+            },
+            {
+                "keyId": "student-2",
+                "keyHash": "hash-2",
+                "label": "two",
+                "dailyQuota": 2000,
+                "createdAt": "now",
+            },
+        ]
+        repository.issue_keys(cohort, records)
+
+        writes = client.transactions[0]["TransactItems"]
+        puts = [_deserialize(write["Put"]["Item"]) for write in writes[1:]]
+        by_pk = {(item["PK"], item["SK"]): item for item in puts}
+        with_identity = by_pk[("COHORT#cohort-1", "KEY#student-1")]
+        self.assertEqual(with_identity["studentName"], "Amara Diallo")
+        self.assertEqual(with_identity["studentEmail"], "amara@example.com")
+        self.assertNotIn("studentName", by_pk[("KEY#hash-1", "META")])
+        self.assertNotIn("studentEmail", by_pk[("KEY#hash-1", "META")])
+        self.assertNotIn("studentName", by_pk[("KEYID#student-1", "META")])
+        self.assertNotIn("studentEmail", by_pk[("KEYID#student-1", "META")])
+        without_identity = by_pk[("COHORT#cohort-1", "KEY#student-2")]
+        self.assertNotIn("studentName", without_identity)
+        self.assertNotIn("studentEmail", without_identity)
 
     def test_legacy_scan_overrides_projection_and_deduplicates(self):
         table, dynamodb, _client = _aws_fakes()
