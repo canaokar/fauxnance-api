@@ -1,10 +1,10 @@
-"""Public, unauthenticated API reference (Swagger UI) served by the api Lambda.
+"""Public, unauthenticated API reference (Scalar) served by the api Lambda.
 
 The canonical contract lives in ``docs/openapi.yaml`` and is maintained by hand.
-This module serves that file verbatim plus a small Swagger UI shell so the
-published contract is browsable and the "Try it out" panel can exercise the
-live endpoints with an ``X-Api-Key``. Swagger UI parses YAML client-side, so no
-runtime YAML dependency is required.
+This module serves that file verbatim plus a small Scalar shell so the published
+contract is browsable and the built-in API client can exercise the live
+endpoints with an ``X-Api-Key``. Scalar parses YAML client-side, so no runtime
+YAML dependency is required.
 """
 
 from __future__ import annotations
@@ -20,10 +20,20 @@ OPENAPI_PATH = "/v1/openapi.yaml"
 # layout, so docs/openapi.yaml resolves identically in Lambda and in tests.
 _SPEC_PATH = Path(__file__).resolve().parents[2] / "docs" / "openapi.yaml"
 
-# Pinned so a CDN republish can never change what the docs page loads.
-_SWAGGER_UI_VERSION = "5.17.14"
-_CDN = f"https://unpkg.com/swagger-ui-dist@{_SWAGGER_UI_VERSION}"
+# Pinned so a CDN republish can never change what the docs page loads, and
+# integrity-checked so a compromised CDN cannot serve different bytes under the
+# pinned URL. Regenerate the hash whenever the version moves:
+#   curl -sL <bundle url> | openssl dgst -sha384 -binary | openssl base64 -A
+_SCALAR_VERSION = "1.66.1"
+_BUNDLE = (
+    f"https://cdn.jsdelivr.net/npm/@scalar/api-reference@{_SCALAR_VERSION}"
+    "/dist/browser/standalone.js"
+)
+_BUNDLE_SRI = "sha384-RkhHYpdjsrJH9sH8RmczPchxNiHEhmW300QwMB/8yg6feduTZu9FBN4W0DJnp50Z"
 
+# The mount point holds a plain-HTML fallback until Scalar replaces it, so a
+# blocked or unreachable CDN degrades to a pointer at the raw contract rather
+# than a blank page.
 _DOCS_HTML = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,21 +41,35 @@ _DOCS_HTML = f"""<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fauxnance API — Reference</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="{_CDN}/swagger-ui.css">
-  <style>body {{ margin: 0; }} .swagger-ui .topbar {{ display: none; }}</style>
+  <style>
+    body {{ margin: 0; }}
+    #fallback {{
+      margin: 4rem auto;
+      max-width: 34rem;
+      padding: 0 1.5rem;
+      font: 1rem/1.6 system-ui, sans-serif;
+    }}
+  </style>
 </head>
 <body>
-  <div id="swagger-ui"></div>
-  <script src="{_CDN}/swagger-ui-bundle.js" crossorigin></script>
-  <script src="{_CDN}/swagger-ui-standalone-preset.js" crossorigin></script>
+  <div id="api-reference">
+    <div id="fallback">
+      <h1>Fauxnance API</h1>
+      <p>
+        The interactive reference could not load. Read the contract directly at
+        <a href="{OPENAPI_PATH}">{OPENAPI_PATH}</a>.
+      </p>
+    </div>
+  </div>
+  <script
+    src="{_BUNDLE}"
+    integrity="{_BUNDLE_SRI}"
+    crossorigin="anonymous"
+  ></script>
   <script>
-    window.ui = SwaggerUIBundle({{
-      url: "{OPENAPI_PATH}",
-      dom_id: "#swagger-ui",
-      deepLinking: true,
-      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-      layout: "StandaloneLayout",
-    }});
+    if (window.Scalar) {{
+      Scalar.createApiReference("#api-reference", {{ url: "{OPENAPI_PATH}" }});
+    }}
   </script>
 </body>
 </html>
@@ -55,7 +79,7 @@ _spec_cache: str | None = None
 
 
 def docs_html() -> str:
-    """Return the Swagger UI page that points at :data:`OPENAPI_PATH`."""
+    """Return the Scalar reference page that points at :data:`OPENAPI_PATH`."""
 
     return _DOCS_HTML
 

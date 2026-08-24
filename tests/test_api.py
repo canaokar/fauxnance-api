@@ -185,7 +185,8 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(
             response["headers"]["Content-Type"], "text/html; charset=utf-8"
         )
-        self.assertIn("swagger-ui", response["body"])
+        self.assertIn("createApiReference", response["body"])
+        self.assertIn("integrity=\"sha384-", response["body"])
         self.assertIn("/v1/openapi.yaml", response["body"])
         self.assertEqual(self.quota.calls, [])
 

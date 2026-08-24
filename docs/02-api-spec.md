@@ -5,8 +5,8 @@ Base URL:
 Gateway URL; no custom domain is currently configured).
 All endpoints require the `X-Api-Key` header unless noted. All v1 responses are
 JSON, UTF-8. CSV candle export is deferred to v1.x. A machine-readable
-[`docs/openapi.yaml`](openapi.yaml) is the contract of record, and interactive
-Swagger UI is available at
+[`docs/openapi.yaml`](openapi.yaml) is the contract of record, and an interactive
+reference is available at
 `https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1/docs`.
 
 ## Symbol scheme

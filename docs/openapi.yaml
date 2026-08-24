@@ -5,7 +5,7 @@ info:
   description: >-
     Educational multi-market end-of-day and best-effort quote API, including
     instructor-only cohort operations. Market data is delayed and not for
-    investment use. Interactive Swagger UI is available at /v1/docs.
+    investment use. An interactive reference is available at /v1/docs.
 servers:
   - url: https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1
     description: Deployed dev API Gateway endpoint; no custom domain is configured.

@@ -7,7 +7,7 @@ not an investment service. The current base URL is the default API Gateway URL:
 https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1
 ```
 
-No custom domain is configured. Browse the interactive Swagger UI at
+No custom domain is configured. Browse the interactive reference at
 [the `/v1/docs` route](https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1/docs)
 or download the contract from `/v1/openapi.yaml`.
 

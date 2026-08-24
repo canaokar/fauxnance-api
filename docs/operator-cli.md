@@ -101,7 +101,7 @@ entry in `failed` represent symbol-year work units. Poll at a measured interval
 
 ## Interactive reference
 
-Swagger UI is public at
-`https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1/docs`. Select
-**Authorize** and enter an admin key to exercise admin operations. Clear the
+The interactive reference is public at
+`https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1/docs`. Enter an admin
+key in the authentication panel to exercise admin operations. Clear the
 authorization before sharing the screen or leaving the workstation.
